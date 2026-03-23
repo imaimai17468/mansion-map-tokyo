@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/oxc-project.github.io/refs/heads/compiled-schema/oxlint.json",
+  "rules": {},
+  "ignorePatterns": ["dist/**", "node_modules/**", ".astro/**"]
+}

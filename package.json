@@ -1,0 +1,28 @@
+{
+  "name": "mansion-map-tokyo",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "astro check",
+    "lint": "oxlint",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check ."
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.8",
+    "astro": "^6.0.8",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "lefthook": "^2.1.4",
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
