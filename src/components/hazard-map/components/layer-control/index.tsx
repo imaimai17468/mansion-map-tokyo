@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { LayerVisibility } from "../../types";
+import type { ActiveLayer } from "../../types";
 
 const PANEL_STYLE = {
   background: "white",
@@ -12,11 +12,11 @@ const PANEL_STYLE = {
 } as const;
 
 export const LayerControl = memo(function LayerControl({
-  layers,
-  onToggle,
+  activeLayer,
+  onChange,
 }: {
-  layers: LayerVisibility;
-  onToggle: (layer: keyof LayerVisibility) => void;
+  activeLayer: ActiveLayer;
+  onChange: (layer: ActiveLayer) => void;
 }) {
   return (
     <div
@@ -29,13 +29,23 @@ export const LayerControl = memo(function LayerControl({
     >
       <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6 }}>レイヤー</div>
       <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-        <input type="checkbox" checked={layers.boring} onChange={() => onToggle("boring")} />
+        <input
+          type="radio"
+          name="layer"
+          checked={activeLayer === "boring"}
+          onChange={() => onChange("boring")}
+        />
         地盤（N&gt;50 深度）
       </label>
       <label
         style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 4 }}
       >
-        <input type="checkbox" checked={layers.flood} onChange={() => onToggle("flood")} />
+        <input
+          type="radio"
+          name="layer"
+          checked={activeLayer === "flood"}
+          onChange={() => onChange("flood")}
+        />
         洪水浸水想定区域
       </label>
     </div>

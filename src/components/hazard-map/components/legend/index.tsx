@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { LayerVisibility } from "../../types";
+import type { ActiveLayer } from "../../types";
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
 
@@ -22,9 +22,7 @@ const PANEL_STYLE = {
   color: "#333",
 } as const;
 
-export const Legend = memo(function Legend({ layers }: { layers: LayerVisibility }) {
-  if (!layers.boring && !layers.flood) return null;
-
+export const Legend = memo(function Legend({ activeLayer }: { activeLayer: ActiveLayer }) {
   return (
     <div
       style={{
@@ -34,7 +32,7 @@ export const Legend = memo(function Legend({ layers }: { layers: LayerVisibility
         ...PANEL_STYLE,
       }}
     >
-      {layers.boring && (
+      {activeLayer === "boring" && (
         <div>
           <div
             style={{
@@ -97,10 +95,7 @@ export const Legend = memo(function Legend({ layers }: { layers: LayerVisibility
           </div>
         </div>
       )}
-      {layers.boring && layers.flood && (
-        <hr style={{ border: "none", borderTop: "1px solid #eee", margin: "8px 0" }} />
-      )}
-      {layers.flood && (
+      {activeLayer === "flood" && (
         <div>
           <div
             style={{

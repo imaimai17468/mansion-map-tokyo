@@ -1,4 +1,1 @@
-export type LayerVisibility = {
-  boring: boolean;
-  flood: boolean;
-};
+export type ActiveLayer = "boring" | "flood";

@@ -5,7 +5,7 @@ import { Protocol } from "pmtiles";
 import { formatPopup } from "./formatPopup";
 import { LayerControl } from "./components/layer-control";
 import { Legend } from "./components/legend";
-import type { LayerVisibility } from "./types";
+import type { ActiveLayer } from "./types";
 
 const CHOROPLETH_URL = "/data/choropleth.pmtiles";
 
@@ -54,11 +54,7 @@ export default function HazardMap() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [layers, setLayers] = useState<LayerVisibility>({ boring: true, flood: false });
-
-  const handleToggle = (layer: keyof LayerVisibility) => {
-    setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
-  };
+  const [activeLayer, setActiveLayer] = useState<ActiveLayer>("boring");
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -160,17 +156,21 @@ export default function HazardMap() {
     const map = mapRef.current;
     if (!map || !map.getLayer(FLOOD_LAYER_ID)) return;
 
-    map.setLayoutProperty(FLOOD_LAYER_ID, "visibility", layers.flood ? "visible" : "none");
+    map.setLayoutProperty(
+      FLOOD_LAYER_ID,
+      "visibility",
+      activeLayer === "flood" ? "visible" : "none",
+    );
     for (const id of BORING_LAYER_IDS) {
-      map.setLayoutProperty(id, "visibility", layers.boring ? "visible" : "none");
+      map.setLayoutProperty(id, "visibility", activeLayer === "boring" ? "visible" : "none");
     }
-  }, [layers]);
+  }, [activeLayer]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
-      <LayerControl layers={layers} onToggle={handleToggle} />
-      <Legend layers={layers} />
+      <LayerControl activeLayer={activeLayer} onChange={setActiveLayer} />
+      <Legend activeLayer={activeLayer} />
       {isLoading && (
         <div
           style={{
