@@ -38,6 +38,7 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       minzoom: 2,
       maxzoom: 17,
+      bounds: [138.94, 35.5, 139.92, 35.9],
       attribution:
         "出典: <a href='https://disaportal.gsi.go.jp/hazardmapportal/hazardmap/copyright/opendata.html' target='_blank'>ハザードマップポータルサイト</a>",
     },
