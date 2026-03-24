@@ -1,12 +1,34 @@
+---
+const title = "マンション立地ラボ";
+const description =
+	"東京のマンション立地をデータで可視化。地盤・価格・アクセスを地図上で比較できます。";
+const url = Astro.url.href;
+---
+
 <!doctype html>
 <html lang="ja">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/png" href="/favicon.png" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
-		<title>東京マンションマップ - 地盤N値深度マップ</title>
+		<title>{title}</title>
+		<meta name="description" content={description} />
+
+		<!-- OGP -->
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content={url} />
+		<meta property="og:locale" content="ja_JP" />
+		<meta property="og:image" content="/og-image.png" />
+
+		<!-- Twitter Card -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:image" content="/og-image.png" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
 	</head>
 	<body>
 		<slot />
