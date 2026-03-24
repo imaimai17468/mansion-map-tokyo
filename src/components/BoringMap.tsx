@@ -99,7 +99,7 @@ const Legend = memo(function Legend() {
           display: "flex",
           alignItems: "center",
           marginTop: 6,
-          color: "#999",
+          color: "#767676",
         }}
       >
         <span
