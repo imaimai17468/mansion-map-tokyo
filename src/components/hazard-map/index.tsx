@@ -1,7 +1,11 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
+import { formatPopup } from "./formatPopup";
+import { LayerControl } from "./components/layer-control";
+import { Legend } from "./components/legend";
+import type { LayerVisibility } from "./types";
 
 const CHOROPLETH_URL = "/data/choropleth.pmtiles";
 
@@ -26,103 +30,34 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       type: "vector",
       url: `pmtiles://${CHOROPLETH_URL}`,
     },
+    flood: {
+      type: "raster",
+      tiles: [
+        "https://disaportaldata.gsi.go.jp/raster/01_flood_l2_shinsuishin_data/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      minzoom: 2,
+      maxzoom: 17,
+      attribution:
+        "出典: <a href='https://disaportal.gsi.go.jp/hazardmapportal/hazardmap/copyright/opendata.html' target='_blank'>ハザードマップポータルサイト</a>",
+    },
   },
   layers: [{ id: "carto", type: "raster", source: "carto" }],
 };
 
-function formatPopup(p: Record<string, unknown>): string {
-  const name = `${p.city ?? ""}${p.area ?? ""}`;
-  if (!p.cnt) return `<strong>${name}</strong><br/>データなし`;
-  return `<strong>${name}</strong><br/>
-    N&gt;50 中央値: ${p.n50_med}m<br/>
-    N&gt;50 平均: ${p.n50_avg}m<br/>
-    N&gt;50 範囲: ${p.n50_min}〜${p.n50_max}m<br/>
-    ボーリング数: ${p.cnt}件`;
-}
+const BORING_LAYER_IDS = ["choropleth-fill", "choropleth-line"];
+const FLOOD_LAYER_ID = "flood-overlay";
 
-const Legend = memo(function Legend() {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        bottom: 30,
-        left: 10,
-        background: "white",
-        borderRadius: 8,
-        padding: "10px 14px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-        zIndex: 1,
-        fontSize: 11,
-        color: "#333",
-      }}
-    >
-      <div
-        style={{
-          fontWeight: 600,
-          marginBottom: 6,
-          fontSize: 12,
-          letterSpacing: "0.02em",
-        }}
-      >
-        N&gt;50 深度（中央値）
-      </div>
-      <div
-        style={{
-          display: "flex",
-          height: 10,
-          borderRadius: 5,
-          overflow: "hidden",
-          width: 180,
-        }}
-      >
-        {DEPTH_COLORS.map((c) => (
-          <div key={c} style={{ flex: 1, background: c }} />
-        ))}
-      </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          width: 180,
-          marginTop: 3,
-          color: "#666",
-        }}
-      >
-        <span>0m</span>
-        <span>5</span>
-        <span>15</span>
-        <span>30</span>
-        <span>50m+</span>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          marginTop: 6,
-          color: "#767676",
-        }}
-      >
-        <span
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: 2,
-            background: "rgba(200,200,200,0.5)",
-            border: "1px solid #ddd",
-            display: "inline-block",
-            marginRight: 5,
-          }}
-        />
-        データなし
-      </div>
-    </div>
-  );
-});
-
-export default function BoringMap() {
+export default function HazardMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [layers, setLayers] = useState<LayerVisibility>({ boring: true, flood: false });
+
+  const handleToggle = (layer: keyof LayerVisibility) => {
+    setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
+  };
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -133,6 +68,7 @@ export default function BoringMap() {
       center: [139.7671, 35.6812],
       zoom: 12,
     });
+    mapRef.current = map;
 
     map.addControl(new maplibregl.NavigationControl());
 
@@ -175,6 +111,15 @@ export default function BoringMap() {
         },
       });
 
+      // Flood raster layer (above choropleth-fill, below boundary lines)
+      map.addLayer({
+        id: FLOOD_LAYER_ID,
+        type: "raster",
+        source: "flood",
+        paint: { "raster-opacity": 0.7 },
+        layout: { visibility: "none" },
+      });
+
       map.addLayer({
         id: "choropleth-line",
         type: "line",
@@ -205,13 +150,26 @@ export default function BoringMap() {
 
     return () => {
       map.remove();
+      mapRef.current = null;
     };
   }, []);
+
+  // Sync layer visibility with map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer(FLOOD_LAYER_ID)) return;
+
+    map.setLayoutProperty(FLOOD_LAYER_ID, "visibility", layers.flood ? "visible" : "none");
+    for (const id of BORING_LAYER_IDS) {
+      map.setLayoutProperty(id, "visibility", layers.boring ? "visible" : "none");
+    }
+  }, [layers]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
-      <Legend />
+      <LayerControl layers={layers} onToggle={handleToggle} />
+      <Legend layers={layers} />
       {isLoading && (
         <div
           style={{
