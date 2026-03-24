@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
@@ -121,26 +121,9 @@ const Legend = memo(function Legend() {
 
 export default function BoringMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
-  const popupRef = useRef(new maplibregl.Popup({ offset: 10 }));
+  const popupRef = useRef<maplibregl.Popup | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const handleClick = useCallback(
-    (e: maplibregl.MapMouseEvent & { features?: maplibregl.GeoJSONFeature[] }) => {
-      const feature = e.features?.[0];
-      if (!feature) return;
-
-      popupRef.current
-        .setLngLat(e.lngLat)
-        .setHTML(
-          `<div style="font-size:13px;line-height:1.6">${formatPopup(feature.properties)}</div>`,
-        )
-        .addTo(mapRef.current!);
-    },
-    [],
-  );
-
-  // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return;
 
@@ -150,20 +133,25 @@ export default function BoringMap() {
       center: [139.7671, 35.6812],
       zoom: 12,
     });
-    mapRef.current = map;
 
     map.addControl(new maplibregl.NavigationControl());
 
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
-  }, []);
+    const handleClick = (
+      e: maplibregl.MapMouseEvent & { features?: maplibregl.GeoJSONFeature[] },
+    ) => {
+      const feature = e.features?.[0];
+      if (!feature) return;
 
-  // Add layers and event handlers after map loads
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
+      if (!popupRef.current) {
+        popupRef.current = new maplibregl.Popup({ offset: 10 });
+      }
+      popupRef.current
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<div style="font-size:13px;line-height:1.6">${formatPopup(feature.properties)}</div>`,
+        )
+        .addTo(map);
+    };
 
     const onLoad = () => {
       map.addLayer({
@@ -216,12 +204,9 @@ export default function BoringMap() {
     }
 
     return () => {
-      map.off("load", onLoad);
-      if (map.getLayer("choropleth-fill")) {
-        map.off("click", "choropleth-fill", handleClick);
-      }
+      map.remove();
     };
-  }, [handleClick]);
+  }, []);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
