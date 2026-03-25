@@ -26,6 +26,7 @@ from pmtiles.reader import MmapSource, Reader
 ROOT = Path(__file__).resolve().parent.parent
 CHOROPLETH_PATH = ROOT / "public" / "data" / "choropleth.pmtiles"
 FLOOD_PATH = ROOT / "public" / "data" / "flood.pmtiles"
+LANDPRICE_PATH = ROOT / "public" / "data" / "landprice.pmtiles"
 OUTPUT_PATH = ROOT / "public" / "data" / "composite.pmtiles"
 
 ESTAT_URL = (
@@ -124,7 +125,12 @@ def main():
         FLOOD_PATH, ["flood_rank", "flood_max"]
     )
 
-    # Step 4: Join attributes to cho-chome
+    # Step 4: Extract land price attributes
+    price_data = extract_attributes(
+        LANDPRICE_PATH, ["price_med", "price_cnt"]
+    )
+
+    # Step 5: Join attributes to cho-chome
     chochome["_key"] = chochome["city"] + "_" + chochome["area"]
 
     # Boring join
@@ -141,12 +147,20 @@ def main():
         flood_vals.append(rec.get("flood_rank", 0) or 0)
     chochome["flood_rank"] = flood_vals
 
+    # Land price join
+    price_vals = []
+    for key in chochome["_key"]:
+        rec = price_data.get(key, {})
+        price_vals.append(rec.get("price_med"))
+    chochome["price_med"] = price_vals
+
     # Stats
     has_boring = chochome["n50_med"].notna().sum()
     has_flood = (chochome["flood_rank"] > 0).sum()
-    print(f"  Matched: {has_boring} with boring data, {has_flood} with flood data")
+    has_price = chochome["price_med"].notna().sum()
+    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price")
 
-    # Step 5: Compute 偏差値
+    # Step 6: Compute 偏差値
     # Ground score: lower n50_med = shallower bedrock = better → invert
     chochome["ground_score"] = compute_deviation_score(
         chochome["n50_med"].fillna(chochome["n50_med"].median()).values,
@@ -159,23 +173,39 @@ def main():
         invert=True,
     )
 
-    # Composite: average of both scores
-    chochome["composite"] = (
-        (chochome["ground_score"] + chochome["flood_score"]) / 2
-    ).round(1)
+    # Price score: only for cho-chome with actual price data
+    has_price_mask = chochome["price_med"].notna()
+    price_scores = np.full(len(chochome), np.nan)
+    if has_price_mask.sum() > 1:
+        price_scores[has_price_mask] = compute_deviation_score(
+            chochome.loc[has_price_mask, "price_med"].values,
+            invert=True,
+        )
+    chochome["price_score"] = price_scores
+
+    # Composite: average of available scores (2 or 3)
+    scores = chochome[["ground_score", "flood_score", "price_score"]]
+    chochome["composite"] = scores.mean(axis=1, skipna=True).round(1)
 
     # Add labels
     chochome["n50_med"] = chochome["n50_med"].round(1)
+    chochome["price_med"] = chochome["price_med"].round(0)
+
+    # Replace NaN price_score with 0 for PMTiles output (0 = no data)
+    chochome["price_score"] = chochome["price_score"].fillna(0).round(1)
 
     # Keep only needed columns
-    out = chochome[["city", "area", "n50_med", "flood_rank",
-                     "ground_score", "flood_score", "composite", "geometry"]].copy()
+    out = chochome[["city", "area", "n50_med", "flood_rank", "price_med",
+                     "ground_score", "flood_score", "price_score",
+                     "composite", "geometry"]].copy()
 
     print(f"\n偏差値 stats:")
     print(f"  Ground: mean={out['ground_score'].mean():.1f}, "
           f"min={out['ground_score'].min()}, max={out['ground_score'].max()}")
     print(f"  Flood:  mean={out['flood_score'].mean():.1f}, "
           f"min={out['flood_score'].min()}, max={out['flood_score'].max()}")
+    print(f"  Price:  mean={out['price_score'].mean():.1f}, "
+          f"min={out['price_score'].min()}, max={out['price_score'].max()}")
     print(f"  Total:  mean={out['composite'].mean():.1f}, "
           f"min={out['composite'].min()}, max={out['composite'].max()}")
 

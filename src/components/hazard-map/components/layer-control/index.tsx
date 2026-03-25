@@ -59,6 +59,17 @@ export const LayerControl = memo(function LayerControl({
         />
         洪水浸水想定区域
       </label>
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 4 }}
+      >
+        <input
+          type="radio"
+          name="layer"
+          checked={activeLayer === "landprice"}
+          onChange={() => onChange("landprice")}
+        />
+        公示地価
+      </label>
     </div>
   );
 });

@@ -167,6 +167,49 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
           </div>
         </div>
       )}
+      {activeLayer === "landprice" && (
+        <div>
+          <div
+            style={{
+              fontWeight: 600,
+              marginBottom: 6,
+              fontSize: 12,
+              letterSpacing: "0.02em",
+            }}
+          >
+            公示地価（2025年・中央値）
+          </div>
+          <div
+            style={{
+              display: "flex",
+              height: 10,
+              borderRadius: 5,
+              overflow: "hidden",
+              width: 180,
+            }}
+          >
+            {["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"].map((c) => (
+              <div key={c} style={{ flex: 1, background: c }} />
+            ))}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: 180,
+              marginTop: 3,
+              color: "#666",
+            }}
+          >
+            <span>10万</span>
+            <span>30万</span>
+            <span>60万</span>
+            <span>100万</span>
+            <span>500万~</span>
+          </div>
+          <div style={{ marginTop: 3, color: "#666" }}>円/m²</div>
+        </div>
+      )}
     </div>
   );
 });

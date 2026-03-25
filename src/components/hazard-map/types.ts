@@ -1,1 +1,1 @@
-export type ActiveLayer = "boring" | "flood" | "composite";
+export type ActiveLayer = "boring" | "flood" | "composite" | "landprice";

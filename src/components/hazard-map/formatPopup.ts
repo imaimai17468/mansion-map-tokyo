@@ -1,12 +1,25 @@
 export function formatPopup(p: Record<string, unknown>): string {
   const name = `${p.city ?? ""}${p.area ?? ""}`;
 
-  // Composite layer
+  // Composite layer (check before price_med since composite also has price_med)
   if ("composite" in p) {
+    const priceStr = p.price_score && p.price_score !== 0 ? `${p.price_score}` : "データなし";
     return `<strong>${name}</strong><br/>
       総合偏差値: <strong>${p.composite}</strong><br/>
       地盤スコア: ${p.ground_score}<br/>
-      洪水スコア: ${p.flood_score}`;
+      洪水スコア: ${p.flood_score}<br/>
+      地価スコア: ${priceStr}`;
+  }
+
+  // Land price layer
+  if ("price_med" in p) {
+    if (!p.price_cnt || p.price_cnt === 0) return `<strong>${name}</strong><br/>地価データなし`;
+    const yoy = Number(p.yoy_med);
+    const yoyStr = yoy > 0 ? `+${yoy}%` : `${yoy}%`;
+    return `<strong>${name}</strong><br/>
+      地価中央値: ${p.price_label}<br/>
+      前年比: ${yoyStr}<br/>
+      地点数: ${p.price_cnt}`;
   }
 
   // Flood layer

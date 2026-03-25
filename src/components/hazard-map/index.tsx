@@ -10,6 +10,7 @@ import type { ActiveLayer } from "./types";
 const CHOROPLETH_URL = "/data/choropleth.pmtiles";
 const FLOOD_URL = "/data/flood.pmtiles";
 const COMPOSITE_URL = "/data/composite.pmtiles";
+const LANDPRICE_URL = "/data/landprice.pmtiles";
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
 const DEPTH_STEPS = [5, 15, 30, 50];
@@ -45,6 +46,10 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       type: "vector",
       url: `pmtiles://${COMPOSITE_URL}`,
     },
+    landprice: {
+      type: "vector",
+      url: `pmtiles://${LANDPRICE_URL}`,
+    },
   },
   layers: [{ id: "carto", type: "raster", source: "carto" }],
 };
@@ -52,6 +57,7 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
 const BORING_LAYER_IDS = ["choropleth-fill", "choropleth-line"];
 const FLOOD_LAYER_IDS = ["flood-fill", "flood-line"];
 const COMPOSITE_LAYER_IDS = ["composite-fill", "composite-line"];
+const LANDPRICE_LAYER_IDS = ["landprice-fill", "landprice-line"];
 
 export default function HazardMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -197,7 +203,51 @@ export default function HazardMap() {
         },
       });
 
-      const clickLayers = ["choropleth-fill", "flood-fill", "composite-fill"];
+      // Land price vector layers (initially hidden)
+      map.addLayer({
+        id: "landprice-fill",
+        type: "fill",
+        source: "landprice",
+        "source-layer": "landprice",
+        paint: {
+          "fill-color": [
+            "case",
+            ["==", ["get", "price_cnt"], 0],
+            "rgba(200,200,200,0.3)",
+            [
+              "interpolate",
+              ["linear"],
+              ["get", "price_med"],
+              100000,
+              "#2ecc71",
+              300000,
+              "#f1c40f",
+              600000,
+              "#e67e22",
+              1000000,
+              "#e74c3c",
+              5000000,
+              "#8e44ad",
+            ],
+          ],
+          "fill-opacity": 0.6,
+        },
+        layout: { visibility: "none" },
+      });
+
+      map.addLayer({
+        id: "landprice-line",
+        type: "line",
+        source: "landprice",
+        "source-layer": "landprice",
+        paint: {
+          "line-color": "#fff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 14, 1],
+        },
+        layout: { visibility: "none" },
+      });
+
+      const clickLayers = ["choropleth-fill", "flood-fill", "composite-fill", "landprice-fill"];
       for (const id of clickLayers) {
         map.on("click", id, handleClick);
         map.on("mouseenter", id, () => {
@@ -236,6 +286,9 @@ export default function HazardMap() {
     }
     for (const id of COMPOSITE_LAYER_IDS) {
       map.setLayoutProperty(id, "visibility", activeLayer === "composite" ? "visible" : "none");
+    }
+    for (const id of LANDPRICE_LAYER_IDS) {
+      map.setLayoutProperty(id, "visibility", activeLayer === "landprice" ? "visible" : "none");
     }
   }, [activeLayer]);
 
