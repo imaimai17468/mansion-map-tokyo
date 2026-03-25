@@ -11,6 +11,7 @@ const CHOROPLETH_URL = "/data/choropleth.pmtiles";
 const FLOOD_URL = "/data/flood.pmtiles";
 const COMPOSITE_URL = "/data/composite.pmtiles";
 const LANDPRICE_URL = "/data/landprice.pmtiles";
+const CRIME_URL_TILE = "/data/crime.pmtiles";
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
 const DEPTH_STEPS = [5, 15, 30, 50];
@@ -50,6 +51,10 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       type: "vector",
       url: `pmtiles://${LANDPRICE_URL}`,
     },
+    crime: {
+      type: "vector",
+      url: `pmtiles://${CRIME_URL_TILE}`,
+    },
   },
   layers: [{ id: "carto", type: "raster", source: "carto" }],
 };
@@ -58,6 +63,7 @@ const BORING_LAYER_IDS = ["choropleth-fill", "choropleth-line"];
 const FLOOD_LAYER_IDS = ["flood-fill", "flood-line"];
 const COMPOSITE_LAYER_IDS = ["composite-fill", "composite-line"];
 const LANDPRICE_LAYER_IDS = ["landprice-fill", "landprice-line"];
+const CRIME_LAYER_IDS = ["crime-fill", "crime-line"];
 
 export default function HazardMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -247,7 +253,52 @@ export default function HazardMap() {
         layout: { visibility: "none" },
       });
 
-      const clickLayers = ["choropleth-fill", "flood-fill", "composite-fill", "landprice-fill"];
+      // Crime vector layers (initially hidden)
+      map.addLayer({
+        id: "crime-fill",
+        type: "fill",
+        source: "crime",
+        "source-layer": "crime",
+        paint: {
+          "fill-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "crime_total"],
+            0,
+            "#2ecc71",
+            10,
+            "#f1c40f",
+            30,
+            "#e67e22",
+            80,
+            "#e74c3c",
+            200,
+            "#8e44ad",
+          ],
+          "fill-opacity": 0.6,
+        },
+        layout: { visibility: "none" },
+      });
+
+      map.addLayer({
+        id: "crime-line",
+        type: "line",
+        source: "crime",
+        "source-layer": "crime",
+        paint: {
+          "line-color": "#fff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 14, 1],
+        },
+        layout: { visibility: "none" },
+      });
+
+      const clickLayers = [
+        "choropleth-fill",
+        "flood-fill",
+        "composite-fill",
+        "landprice-fill",
+        "crime-fill",
+      ];
       for (const id of clickLayers) {
         map.on("click", id, handleClick);
         map.on("mouseenter", id, () => {
@@ -289,6 +340,9 @@ export default function HazardMap() {
     }
     for (const id of LANDPRICE_LAYER_IDS) {
       map.setLayoutProperty(id, "visibility", activeLayer === "landprice" ? "visible" : "none");
+    }
+    for (const id of CRIME_LAYER_IDS) {
+      map.setLayoutProperty(id, "visibility", activeLayer === "crime" ? "visible" : "none");
     }
   }, [activeLayer]);
 

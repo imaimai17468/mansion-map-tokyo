@@ -70,6 +70,17 @@ export const LayerControl = memo(function LayerControl({
         />
         公示地価
       </label>
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 4 }}
+      >
+        <input
+          type="radio"
+          name="layer"
+          checked={activeLayer === "crime"}
+          onChange={() => onChange("crime")}
+        />
+        犯罪件数
+      </label>
     </div>
   );
 });

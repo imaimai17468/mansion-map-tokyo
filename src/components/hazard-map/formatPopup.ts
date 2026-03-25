@@ -4,11 +4,23 @@ export function formatPopup(p: Record<string, unknown>): string {
   // Composite layer (check before price_med since composite also has price_med)
   if ("composite" in p) {
     const priceStr = p.price_score && p.price_score !== 0 ? `${p.price_score}` : "データなし";
+    const crimeStr = p.crime_score && p.crime_score !== 0 ? `${p.crime_score}` : "データなし";
     return `<strong>${name}</strong><br/>
       総合偏差値: <strong>${p.composite}</strong><br/>
       地盤スコア: ${p.ground_score}<br/>
       洪水スコア: ${p.flood_score}<br/>
-      地価スコア: ${priceStr}`;
+      地価スコア: ${priceStr}<br/>
+      治安スコア: ${crimeStr}`;
+  }
+
+  // Crime layer
+  if ("crime_total" in p && !("composite" in p) && !("price_med" in p)) {
+    return `<strong>${name}</strong><br/>
+      犯罪総数: ${p.crime_total}件<br/>
+      凶悪犯: ${p.crime_violent}件<br/>
+      粗暴犯: ${p.crime_assault}件<br/>
+      侵入窃盗: ${p.crime_burglary}件<br/>
+      非侵入窃盗: ${p.crime_theft}件`;
   }
 
   // Land price layer

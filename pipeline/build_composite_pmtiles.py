@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CHOROPLETH_PATH = ROOT / "public" / "data" / "choropleth.pmtiles"
 FLOOD_PATH = ROOT / "public" / "data" / "flood.pmtiles"
 LANDPRICE_PATH = ROOT / "public" / "data" / "landprice.pmtiles"
+CRIME_PATH = ROOT / "public" / "data" / "crime.pmtiles"
 OUTPUT_PATH = ROOT / "public" / "data" / "composite.pmtiles"
 
 ESTAT_URL = (
@@ -130,7 +131,12 @@ def main():
         LANDPRICE_PATH, ["price_med", "price_cnt"]
     )
 
-    # Step 5: Join attributes to cho-chome
+    # Step 5: Extract crime attributes
+    crime_data = extract_attributes(
+        CRIME_PATH, ["crime_total"]
+    )
+
+    # Step 6: Join attributes to cho-chome
     chochome["_key"] = chochome["city"] + "_" + chochome["area"]
 
     # Boring join
@@ -154,13 +160,21 @@ def main():
         price_vals.append(rec.get("price_med"))
     chochome["price_med"] = price_vals
 
+    # Crime join
+    crime_vals = []
+    for key in chochome["_key"]:
+        rec = crime_data.get(key, {})
+        crime_vals.append(rec.get("crime_total"))
+    chochome["crime_total"] = crime_vals
+
     # Stats
     has_boring = chochome["n50_med"].notna().sum()
     has_flood = (chochome["flood_rank"] > 0).sum()
     has_price = chochome["price_med"].notna().sum()
-    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price")
+    has_crime = chochome["crime_total"].notna().sum()
+    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price, {has_crime} crime")
 
-    # Step 6: Compute 偏差値
+    # Step 7: Compute 偏差値
     # Ground score: lower n50_med = shallower bedrock = better → invert
     chochome["ground_score"] = compute_deviation_score(
         chochome["n50_med"].fillna(chochome["n50_med"].median()).values,
@@ -183,20 +197,31 @@ def main():
         )
     chochome["price_score"] = price_scores
 
-    # Composite: average of available scores (2 or 3)
-    scores = chochome[["ground_score", "flood_score", "price_score"]]
+    # Crime score: lower crime = safer = better → invert
+    has_crime_mask = chochome["crime_total"].notna()
+    crime_scores = np.full(len(chochome), np.nan)
+    if has_crime_mask.sum() > 1:
+        crime_scores[has_crime_mask] = compute_deviation_score(
+            chochome.loc[has_crime_mask, "crime_total"].values,
+            invert=True,
+        )
+    chochome["crime_score"] = crime_scores
+
+    # Composite: average of available scores
+    scores = chochome[["ground_score", "flood_score", "price_score", "crime_score"]]
     chochome["composite"] = scores.mean(axis=1, skipna=True).round(1)
 
     # Add labels
     chochome["n50_med"] = chochome["n50_med"].round(1)
     chochome["price_med"] = chochome["price_med"].round(0)
 
-    # Replace NaN price_score with 0 for PMTiles output (0 = no data)
+    # Replace NaN with 0 for PMTiles output (0 = no data)
     chochome["price_score"] = chochome["price_score"].fillna(0).round(1)
+    chochome["crime_score"] = chochome["crime_score"].fillna(0).round(1)
 
     # Keep only needed columns
-    out = chochome[["city", "area", "n50_med", "flood_rank", "price_med",
-                     "ground_score", "flood_score", "price_score",
+    out = chochome[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total",
+                     "ground_score", "flood_score", "price_score", "crime_score",
                      "composite", "geometry"]].copy()
 
     print(f"\n偏差値 stats:")
@@ -206,6 +231,8 @@ def main():
           f"min={out['flood_score'].min()}, max={out['flood_score'].max()}")
     print(f"  Price:  mean={out['price_score'].mean():.1f}, "
           f"min={out['price_score'].min()}, max={out['price_score'].max()}")
+    print(f"  Crime:  mean={out['crime_score'].mean():.1f}, "
+          f"min={out['crime_score'].min()}, max={out['crime_score'].max()}")
     print(f"  Total:  mean={out['composite'].mean():.1f}, "
           f"min={out['composite'].min()}, max={out['composite'].max()}")
 
