@@ -8,9 +8,13 @@ import { Legend } from "./components/legend";
 import type { ActiveLayer } from "./types";
 
 const CHOROPLETH_URL = "/data/choropleth.pmtiles";
+const FLOOD_URL = "/data/flood.pmtiles";
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
 const DEPTH_STEPS = [5, 15, 30, 50];
+
+const FLOOD_COLORS = ["#F7F1A0", "#F6E26B", "#F2A85B", "#E87B5A", "#D44D6E", "#9B3FA3"];
+const FLOOD_STEPS = [1, 2, 3, 4, 5, 6];
 
 // Register PMTiles protocol once at module level
 const protocol = new Protocol();
@@ -31,14 +35,8 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       url: `pmtiles://${CHOROPLETH_URL}`,
     },
     flood: {
-      type: "raster",
-      tiles: [
-        "https://disaportaldata.gsi.go.jp/raster/01_flood_l2_shinsuishin_data/{z}/{x}/{y}.png",
-      ],
-      tileSize: 256,
-      minzoom: 2,
-      maxzoom: 17,
-      bounds: [138.94, 35.5, 139.92, 35.9],
+      type: "vector",
+      url: `pmtiles://${FLOOD_URL}`,
       attribution:
         "出典: <a href='https://disaportal.gsi.go.jp/hazardmapportal/hazardmap/copyright/opendata.html' target='_blank'>ハザードマップポータルサイト</a>",
     },
@@ -47,7 +45,7 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
 };
 
 const BORING_LAYER_IDS = ["choropleth-fill", "choropleth-line"];
-const FLOOD_LAYER_ID = "flood-overlay";
+const FLOOD_LAYER_IDS = ["flood-fill", "flood-line"];
 
 export default function HazardMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -108,15 +106,6 @@ export default function HazardMap() {
         },
       });
 
-      // Flood raster layer (above choropleth-fill, below boundary lines)
-      map.addLayer({
-        id: FLOOD_LAYER_ID,
-        type: "raster",
-        source: "flood",
-        paint: { "raster-opacity": 0.7 },
-        layout: { visibility: "none" },
-      });
-
       map.addLayer({
         id: "choropleth-line",
         type: "line",
@@ -128,13 +117,51 @@ export default function HazardMap() {
         },
       });
 
+      // Flood vector layers (initially hidden)
+      map.addLayer({
+        id: "flood-fill",
+        type: "fill",
+        source: "flood",
+        "source-layer": "flood",
+        paint: {
+          "fill-color": [
+            "case",
+            ["==", ["get", "flood_rank"], 0],
+            "rgba(200,200,200,0.3)",
+            [
+              "step",
+              ["get", "flood_rank"],
+              FLOOD_COLORS[0],
+              ...FLOOD_STEPS.slice(1).flatMap((s, i) => [s, FLOOD_COLORS[i + 1]]),
+            ],
+          ],
+          "fill-opacity": 0.6,
+        },
+        layout: { visibility: "none" },
+      });
+
+      map.addLayer({
+        id: "flood-line",
+        type: "line",
+        source: "flood",
+        "source-layer": "flood",
+        paint: {
+          "line-color": "#fff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 14, 1],
+        },
+        layout: { visibility: "none" },
+      });
+
       map.on("click", "choropleth-fill", handleClick);
-      map.on("mouseenter", "choropleth-fill", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "choropleth-fill", () => {
-        map.getCanvas().style.cursor = "";
-      });
+      map.on("click", "flood-fill", handleClick);
+      for (const id of ["choropleth-fill", "flood-fill"]) {
+        map.on("mouseenter", id, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", id, () => {
+          map.getCanvas().style.cursor = "";
+        });
+      }
 
       setIsLoading(false);
     };
@@ -154,13 +181,11 @@ export default function HazardMap() {
   // Sync layer visibility with map
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.getLayer(FLOOD_LAYER_ID)) return;
+    if (!map || !map.getLayer("flood-fill")) return;
 
-    map.setLayoutProperty(
-      FLOOD_LAYER_ID,
-      "visibility",
-      activeLayer === "flood" ? "visible" : "none",
-    );
+    for (const id of FLOOD_LAYER_IDS) {
+      map.setLayoutProperty(id, "visibility", activeLayer === "flood" ? "visible" : "none");
+    }
     for (const id of BORING_LAYER_IDS) {
       map.setLayoutProperty(id, "visibility", activeLayer === "boring" ? "visible" : "none");
     }
