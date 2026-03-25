@@ -5,12 +5,23 @@ export function formatPopup(p: Record<string, unknown>): string {
   if ("composite" in p) {
     const priceStr = p.price_score && p.price_score !== 0 ? `${p.price_score}` : "データなし";
     const crimeStr = p.crime_score && p.crime_score !== 0 ? `${p.crime_score}` : "データなし";
+    const liqStr = p.liq_score && p.liq_score !== 0 ? `${p.liq_score}` : "データなし";
     return `<strong>${name}</strong><br/>
       総合偏差値: <strong>${p.composite}</strong><br/>
       地盤スコア: ${p.ground_score}<br/>
       洪水スコア: ${p.flood_score}<br/>
+      液状化スコア: ${liqStr}<br/>
       地価スコア: ${priceStr}<br/>
       治安スコア: ${crimeStr}`;
+  }
+
+  // Liquefaction layer
+  if ("liq_max" in p && !("composite" in p)) {
+    if (!p.liq_cnt || p.liq_cnt === 0) return `<strong>${name}</strong><br/>液状化データなし`;
+    return `<strong>${name}</strong><br/>
+      最大リスク: ${p.liq_label}<br/>
+      高リスク率: ${p.liq_high_ratio}%<br/>
+      調査地点数: ${p.liq_cnt}`;
   }
 
   // Crime layer

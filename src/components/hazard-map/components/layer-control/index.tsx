@@ -81,6 +81,17 @@ export const LayerControl = memo(function LayerControl({
         />
         犯罪件数
       </label>
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 4 }}
+      >
+        <input
+          type="radio"
+          name="layer"
+          checked={activeLayer === "liquefaction"}
+          onChange={() => onChange("liquefaction")}
+        />
+        液状化リスク
+      </label>
     </div>
   );
 });

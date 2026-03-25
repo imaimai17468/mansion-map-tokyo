@@ -253,6 +253,40 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
           <div style={{ marginTop: 3, color: "#666" }}>件/年</div>
         </div>
       )}
+      {activeLayer === "liquefaction" && (
+        <div>
+          <div
+            style={{
+              fontWeight: 600,
+              marginBottom: 6,
+              fontSize: 12,
+              letterSpacing: "0.02em",
+            }}
+          >
+            液状化リスク（PL値）
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {[
+              { color: "#2ecc71", label: "低（PL≦5）" },
+              { color: "#f39c12", label: "中（5<PL≦15）" },
+              { color: "#e74c3c", label: "高（PL>15）" },
+            ].map(({ color, label }) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span
+                  style={{
+                    width: 14,
+                    height: 10,
+                    borderRadius: 2,
+                    background: color,
+                    display: "inline-block",
+                  }}
+                />
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 });

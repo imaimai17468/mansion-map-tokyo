@@ -28,6 +28,7 @@ CHOROPLETH_PATH = ROOT / "public" / "data" / "choropleth.pmtiles"
 FLOOD_PATH = ROOT / "public" / "data" / "flood.pmtiles"
 LANDPRICE_PATH = ROOT / "public" / "data" / "landprice.pmtiles"
 CRIME_PATH = ROOT / "public" / "data" / "crime.pmtiles"
+LIQUEFACTION_PATH = ROOT / "public" / "data" / "liquefaction.pmtiles"
 OUTPUT_PATH = ROOT / "public" / "data" / "composite.pmtiles"
 
 ESTAT_URL = (
@@ -136,7 +137,12 @@ def main():
         CRIME_PATH, ["crime_total"]
     )
 
-    # Step 6: Join attributes to cho-chome
+    # Step 6: Extract liquefaction attributes
+    liq_data = extract_attributes(
+        LIQUEFACTION_PATH, ["liq_max", "liq_cnt"]
+    )
+
+    # Step 7: Join attributes to cho-chome
     chochome["_key"] = chochome["city"] + "_" + chochome["area"]
 
     # Boring join
@@ -167,12 +173,20 @@ def main():
         crime_vals.append(rec.get("crime_total"))
     chochome["crime_total"] = crime_vals
 
+    # Liquefaction join
+    liq_vals = []
+    for key in chochome["_key"]:
+        rec = liq_data.get(key, {})
+        liq_vals.append(rec.get("liq_max"))
+    chochome["liq_max"] = liq_vals
+
     # Stats
     has_boring = chochome["n50_med"].notna().sum()
     has_flood = (chochome["flood_rank"] > 0).sum()
     has_price = chochome["price_med"].notna().sum()
     has_crime = chochome["crime_total"].notna().sum()
-    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price, {has_crime} crime")
+    has_liq = chochome["liq_max"].notna().sum()
+    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price, {has_crime} crime, {has_liq} liq")
 
     # Step 7: Compute 偏差値
     # Ground score: lower n50_med = shallower bedrock = better → invert
@@ -207,8 +221,18 @@ def main():
         )
     chochome["crime_score"] = crime_scores
 
+    # Liquefaction score: lower liq_max = less risk = better → invert
+    has_liq_mask = chochome["liq_max"].notna()
+    liq_scores = np.full(len(chochome), np.nan)
+    if has_liq_mask.sum() > 1:
+        liq_scores[has_liq_mask] = compute_deviation_score(
+            chochome.loc[has_liq_mask, "liq_max"].values,
+            invert=True,
+        )
+    chochome["liq_score"] = liq_scores
+
     # Composite: average of available scores
-    scores = chochome[["ground_score", "flood_score", "price_score", "crime_score"]]
+    scores = chochome[["ground_score", "flood_score", "price_score", "crime_score", "liq_score"]]
     chochome["composite"] = scores.mean(axis=1, skipna=True).round(1)
 
     # Add labels
@@ -218,10 +242,11 @@ def main():
     # Replace NaN with 0 for PMTiles output (0 = no data)
     chochome["price_score"] = chochome["price_score"].fillna(0).round(1)
     chochome["crime_score"] = chochome["crime_score"].fillna(0).round(1)
+    chochome["liq_score"] = chochome["liq_score"].fillna(0).round(1)
 
     # Keep only needed columns
-    out = chochome[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total",
-                     "ground_score", "flood_score", "price_score", "crime_score",
+    out = chochome[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total", "liq_max",
+                     "ground_score", "flood_score", "price_score", "crime_score", "liq_score",
                      "composite", "geometry"]].copy()
 
     print(f"\n偏差値 stats:")
@@ -233,6 +258,8 @@ def main():
           f"min={out['price_score'].min()}, max={out['price_score'].max()}")
     print(f"  Crime:  mean={out['crime_score'].mean():.1f}, "
           f"min={out['crime_score'].min()}, max={out['crime_score'].max()}")
+    print(f"  Liq:    mean={out['liq_score'].mean():.1f}, "
+          f"min={out['liq_score'].min()}, max={out['liq_score'].max()}")
     print(f"  Total:  mean={out['composite'].mean():.1f}, "
           f"min={out['composite'].min()}, max={out['composite'].max()}")
 
