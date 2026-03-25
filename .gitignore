@@ -25,3 +25,6 @@ pnpm-debug.log*
 data/liquefaction/*.zip
 data/liquefaction/PL分布図/
 data/liquefaction/ekijyouka250m_toshin.csv
+data/N02/*.zip
+data/N02/UTF-8/N02-24_RailroadSection.geojson
+data/N02/Shift-JIS/
