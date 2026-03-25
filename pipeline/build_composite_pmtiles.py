@@ -29,6 +29,7 @@ FLOOD_PATH = ROOT / "public" / "data" / "flood.pmtiles"
 LANDPRICE_PATH = ROOT / "public" / "data" / "landprice.pmtiles"
 CRIME_PATH = ROOT / "public" / "data" / "crime.pmtiles"
 LIQUEFACTION_PATH = ROOT / "public" / "data" / "liquefaction.pmtiles"
+ACCESS_PATH = ROOT / "public" / "data" / "access.pmtiles"
 OUTPUT_PATH = ROOT / "public" / "data" / "composite.pmtiles"
 
 ESTAT_URL = (
@@ -142,7 +143,12 @@ def main():
         LIQUEFACTION_PATH, ["liq_max", "liq_cnt"]
     )
 
-    # Step 7: Join attributes to cho-chome
+    # Step 7: Extract access attributes
+    access_data = extract_attributes(
+        ACCESS_PATH, ["access_index", "nearest_station"]
+    )
+
+    # Step 8: Join attributes to cho-chome
     chochome["_key"] = chochome["city"] + "_" + chochome["area"]
 
     # Boring join
@@ -180,13 +186,21 @@ def main():
         liq_vals.append(rec.get("liq_max"))
     chochome["liq_max"] = liq_vals
 
+    # Access join
+    access_vals = []
+    for key in chochome["_key"]:
+        rec = access_data.get(key, {})
+        access_vals.append(rec.get("access_index"))
+    chochome["access_index"] = access_vals
+
     # Stats
     has_boring = chochome["n50_med"].notna().sum()
     has_flood = (chochome["flood_rank"] > 0).sum()
     has_price = chochome["price_med"].notna().sum()
     has_crime = chochome["crime_total"].notna().sum()
     has_liq = chochome["liq_max"].notna().sum()
-    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price, {has_crime} crime, {has_liq} liq")
+    has_access = chochome["access_index"].notna().sum()
+    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price, {has_crime} crime, {has_liq} liq, {has_access} access")
 
     # Step 7: Compute 偏差値
     # Ground score: lower n50_med = shallower bedrock = better → invert
@@ -231,8 +245,18 @@ def main():
         )
     chochome["liq_score"] = liq_scores
 
+    # Access score: lower access_index = closer to downtown = better → invert
+    has_access_mask = chochome["access_index"].notna()
+    access_scores = np.full(len(chochome), np.nan)
+    if has_access_mask.sum() > 1:
+        access_scores[has_access_mask] = compute_deviation_score(
+            chochome.loc[has_access_mask, "access_index"].values,
+            invert=True,
+        )
+    chochome["access_score"] = access_scores
+
     # Composite: average of available scores
-    scores = chochome[["ground_score", "flood_score", "price_score", "crime_score", "liq_score"]]
+    scores = chochome[["ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score"]]
     chochome["composite"] = scores.mean(axis=1, skipna=True).round(1)
 
     # Add labels
@@ -243,10 +267,11 @@ def main():
     chochome["price_score"] = chochome["price_score"].fillna(0).round(1)
     chochome["crime_score"] = chochome["crime_score"].fillna(0).round(1)
     chochome["liq_score"] = chochome["liq_score"].fillna(0).round(1)
+    chochome["access_score"] = chochome["access_score"].fillna(0).round(1)
 
     # Keep only needed columns
-    out = chochome[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total", "liq_max",
-                     "ground_score", "flood_score", "price_score", "crime_score", "liq_score",
+    out = chochome[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total", "liq_max", "access_index",
+                     "ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score",
                      "composite", "geometry"]].copy()
 
     print(f"\n偏差値 stats:")
@@ -260,6 +285,8 @@ def main():
           f"min={out['crime_score'].min()}, max={out['crime_score'].max()}")
     print(f"  Liq:    mean={out['liq_score'].mean():.1f}, "
           f"min={out['liq_score'].min()}, max={out['liq_score'].max()}")
+    print(f"  Access: mean={out['access_score'].mean():.1f}, "
+          f"min={out['access_score'].min()}, max={out['access_score'].max()}")
     print(f"  Total:  mean={out['composite'].mean():.1f}, "
           f"min={out['composite'].min()}, max={out['composite'].max()}")
 

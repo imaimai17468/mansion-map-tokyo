@@ -92,6 +92,17 @@ export const LayerControl = memo(function LayerControl({
         />
         液状化リスク
       </label>
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 4 }}
+      >
+        <input
+          type="radio"
+          name="layer"
+          checked={activeLayer === "access"}
+          onChange={() => onChange("access")}
+        />
+        都心アクセス
+      </label>
     </div>
   );
 });

@@ -13,6 +13,7 @@ const COMPOSITE_URL = "/data/composite.pmtiles";
 const LANDPRICE_URL = "/data/landprice.pmtiles";
 const CRIME_URL_TILE = "/data/crime.pmtiles";
 const LIQUEFACTION_URL = "/data/liquefaction.pmtiles";
+const ACCESS_URL = "/data/access.pmtiles";
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
 const DEPTH_STEPS = [5, 15, 30, 50];
@@ -60,6 +61,10 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       type: "vector",
       url: `pmtiles://${LIQUEFACTION_URL}`,
     },
+    access: {
+      type: "vector",
+      url: `pmtiles://${ACCESS_URL}`,
+    },
   },
   layers: [{ id: "carto", type: "raster", source: "carto" }],
 };
@@ -70,6 +75,7 @@ const COMPOSITE_LAYER_IDS = ["composite-fill", "composite-line"];
 const LANDPRICE_LAYER_IDS = ["landprice-fill", "landprice-line"];
 const CRIME_LAYER_IDS = ["crime-fill", "crime-line"];
 const LIQUEFACTION_LAYER_IDS = ["liquefaction-fill", "liquefaction-line"];
+const ACCESS_LAYER_IDS = ["access-fill", "access-line"];
 
 export default function HazardMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -340,7 +346,48 @@ export default function HazardMap() {
         "landprice-fill",
         "crime-fill",
         "liquefaction-fill",
+        "access-fill",
       ];
+
+      // Access vector layers (initially hidden)
+      map.addLayer({
+        id: "access-fill",
+        type: "fill",
+        source: "access",
+        "source-layer": "access",
+        paint: {
+          "fill-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "access_index"],
+            5,
+            "#1abc9c",
+            15,
+            "#2ecc71",
+            30,
+            "#f1c40f",
+            45,
+            "#e67e22",
+            60,
+            "#e74c3c",
+          ],
+          "fill-opacity": 0.6,
+        },
+        layout: { visibility: "none" },
+      });
+
+      map.addLayer({
+        id: "access-line",
+        type: "line",
+        source: "access",
+        "source-layer": "access",
+        paint: {
+          "line-color": "#fff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 14, 1],
+        },
+        layout: { visibility: "none" },
+      });
+
       for (const id of clickLayers) {
         map.on("click", id, handleClick);
         map.on("mouseenter", id, () => {
@@ -388,6 +435,9 @@ export default function HazardMap() {
     }
     for (const id of LIQUEFACTION_LAYER_IDS) {
       map.setLayoutProperty(id, "visibility", activeLayer === "liquefaction" ? "visible" : "none");
+    }
+    for (const id of ACCESS_LAYER_IDS) {
+      map.setLayoutProperty(id, "visibility", activeLayer === "access" ? "visible" : "none");
     }
   }, [activeLayer]);
 

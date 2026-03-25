@@ -1,18 +1,31 @@
 export function formatPopup(p: Record<string, unknown>): string {
   const name = `${p.city ?? ""}${p.area ?? ""}`;
 
+  // Access layer
+  if ("access_index" in p && !("composite" in p)) {
+    return `<strong>${name}</strong><br/>
+      最寄駅: ${p.nearest_station}（徒歩${p.walk_min}分）<br/>
+      アクセス指数: <strong>${p.access_index}分</strong><br/>
+      → 東京: ${p.to_tokyo}分<br/>
+      → 新宿: ${p.to_shinjuku}分<br/>
+      → 渋谷: ${p.to_shibuya}分<br/>
+      → 品川: ${p.to_shinagawa}分`;
+  }
+
   // Composite layer (check before price_med since composite also has price_med)
   if ("composite" in p) {
     const priceStr = p.price_score && p.price_score !== 0 ? `${p.price_score}` : "データなし";
     const crimeStr = p.crime_score && p.crime_score !== 0 ? `${p.crime_score}` : "データなし";
     const liqStr = p.liq_score && p.liq_score !== 0 ? `${p.liq_score}` : "データなし";
+    const accessStr = p.access_score && p.access_score !== 0 ? `${p.access_score}` : "データなし";
     return `<strong>${name}</strong><br/>
       総合偏差値: <strong>${p.composite}</strong><br/>
       地盤スコア: ${p.ground_score}<br/>
       洪水スコア: ${p.flood_score}<br/>
       液状化スコア: ${liqStr}<br/>
       地価スコア: ${priceStr}<br/>
-      治安スコア: ${crimeStr}`;
+      治安スコア: ${crimeStr}<br/>
+      アクセススコア: ${accessStr}`;
   }
 
   // Liquefaction layer

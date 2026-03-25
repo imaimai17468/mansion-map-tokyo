@@ -1,1 +1,8 @@
-export type ActiveLayer = "boring" | "flood" | "composite" | "landprice" | "crime" | "liquefaction";
+export type ActiveLayer =
+  | "boring"
+  | "flood"
+  | "composite"
+  | "landprice"
+  | "crime"
+  | "liquefaction"
+  | "access";

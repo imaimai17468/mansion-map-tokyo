@@ -1,5 +1,18 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import type { ActiveLayer } from "../../types";
+
+const DESCRIPTIONS: Record<ActiveLayer, string> = {
+  composite:
+    "地盤・洪水・液状化・地価・治安・アクセスの6指標を偏差値化（平均50）し、平均したスコア。高いほど総合的に優れた立地。",
+  boring:
+    "N値50以上に達する深さの中央値。浅いほど硬い地盤（良好）。KuniJibanボーリングデータより。",
+  flood: "想定最大規模降雨時の浸水深（国土数値情報A31a）。町丁目内で最も深い浸水ランクを表示。",
+  liquefaction: "PL値に基づく液状化危険度（東京都建設局）。低/中/高の3段階。",
+  landprice: "国土数値情報L01の公示地価（2025年）。町丁目内の地点中央値（円/m²）。",
+  crime: "警視庁発表の町丁別認知件数（2025年）。凶悪犯・粗暴犯・窃盗などの内訳も確認可能。",
+  access:
+    "主要駅への推定所要時間の加重平均（東京×6 + 新宿×2 + 渋谷×1 + 品川×1）。徒歩時間込み。小さいほど良好。",
+};
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
 
@@ -22,6 +35,40 @@ const PANEL_STYLE = {
   color: "#333",
 } as const;
 
+function InfoToggle({ activeLayer }: { activeLayer: ActiveLayer }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: "50%",
+          border: "1px solid #ccc",
+          background: open ? "#eee" : "white",
+          cursor: "pointer",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#888",
+          padding: 0,
+          lineHeight: "16px",
+          marginLeft: 6,
+          flexShrink: 0,
+        }}
+        aria-label="説明を表示"
+      >
+        ?
+      </button>
+      {open && (
+        <div style={{ marginTop: 6, color: "#666", fontSize: 10, lineHeight: 1.5 }}>
+          {DESCRIPTIONS[activeLayer]}
+        </div>
+      )}
+    </>
+  );
+}
+
 export const Legend = memo(function Legend({ activeLayer }: { activeLayer: ActiveLayer }) {
   return (
     <div
@@ -30,6 +77,7 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
         bottom: 30,
         left: 10,
         ...PANEL_STYLE,
+        maxWidth: 220,
       }}
     >
       {activeLayer === "boring" && (
@@ -40,9 +88,12 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
               marginBottom: 6,
               fontSize: 12,
               letterSpacing: "0.02em",
+              display: "flex",
+              alignItems: "center",
             }}
           >
             N&gt;50 深度（中央値）
+            <InfoToggle activeLayer={activeLayer} />
           </div>
           <div
             style={{
@@ -103,9 +154,12 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
               marginBottom: 6,
               fontSize: 12,
               letterSpacing: "0.02em",
+              display: "flex",
+              alignItems: "center",
             }}
           >
             洪水浸水想定（想定最大規模）
+            <InfoToggle activeLayer={activeLayer} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {FLOOD_LEGEND.map(({ color, label }) => (
@@ -133,9 +187,12 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
               marginBottom: 6,
               fontSize: 12,
               letterSpacing: "0.02em",
+              display: "flex",
+              alignItems: "center",
             }}
           >
             立地安全偏差値
+            <InfoToggle activeLayer={activeLayer} />
           </div>
           <div
             style={{
@@ -175,9 +232,12 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
               marginBottom: 6,
               fontSize: 12,
               letterSpacing: "0.02em",
+              display: "flex",
+              alignItems: "center",
             }}
           >
             公示地価（2025年・中央値）
+            <InfoToggle activeLayer={activeLayer} />
           </div>
           <div
             style={{
@@ -218,9 +278,12 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
               marginBottom: 6,
               fontSize: 12,
               letterSpacing: "0.02em",
+              display: "flex",
+              alignItems: "center",
             }}
           >
             犯罪認知件数（2025年）
+            <InfoToggle activeLayer={activeLayer} />
           </div>
           <div
             style={{
@@ -261,9 +324,12 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
               marginBottom: 6,
               fontSize: 12,
               letterSpacing: "0.02em",
+              display: "flex",
+              alignItems: "center",
             }}
           >
             液状化リスク（PL値）
+            <InfoToggle activeLayer={activeLayer} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {[
@@ -284,6 +350,54 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
                 {label}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {activeLayer === "access" && (
+        <div>
+          <div
+            style={{
+              fontWeight: 600,
+              marginBottom: 6,
+              fontSize: 12,
+              letterSpacing: "0.02em",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            都心アクセス指数
+            <InfoToggle activeLayer={activeLayer} />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              height: 10,
+              borderRadius: 5,
+              overflow: "hidden",
+              width: 180,
+            }}
+          >
+            {["#1abc9c", "#2ecc71", "#f1c40f", "#e67e22", "#e74c3c"].map((c) => (
+              <div key={c} style={{ flex: 1, background: c }} />
+            ))}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: 180,
+              marginTop: 3,
+              color: "#666",
+            }}
+          >
+            <span>5</span>
+            <span>15</span>
+            <span>30</span>
+            <span>45</span>
+            <span>60分~</span>
+          </div>
+          <div style={{ marginTop: 3, color: "#666", fontSize: 10 }}>
+            東京×6 + 新宿×2 + 渋谷×1 + 品川×1
           </div>
         </div>
       )}
