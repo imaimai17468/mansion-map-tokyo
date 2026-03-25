@@ -22,3 +22,6 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+data/liquefaction/*.zip
+data/liquefaction/PL分布図/
+data/liquefaction/ekijyouka250m_toshin.csv
