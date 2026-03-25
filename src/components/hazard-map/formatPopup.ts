@@ -1,6 +1,14 @@
 export function formatPopup(p: Record<string, unknown>): string {
   const name = `${p.city ?? ""}${p.area ?? ""}`;
 
+  // Composite layer
+  if ("composite" in p) {
+    return `<strong>${name}</strong><br/>
+      総合偏差値: <strong>${p.composite}</strong><br/>
+      地盤スコア: ${p.ground_score}<br/>
+      洪水スコア: ${p.flood_score}`;
+  }
+
   // Flood layer
   if ("flood_rank" in p) {
     if (!p.flood_rank || p.flood_rank === 0) return `<strong>${name}</strong><br/>浸水想定なし`;

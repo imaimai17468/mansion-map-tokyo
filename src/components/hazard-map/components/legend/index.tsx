@@ -125,6 +125,48 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
           </div>
         </div>
       )}
+      {activeLayer === "composite" && (
+        <div>
+          <div
+            style={{
+              fontWeight: 600,
+              marginBottom: 6,
+              fontSize: 12,
+              letterSpacing: "0.02em",
+            }}
+          >
+            立地安全偏差値
+          </div>
+          <div
+            style={{
+              display: "flex",
+              height: 10,
+              borderRadius: 5,
+              overflow: "hidden",
+              width: 180,
+            }}
+          >
+            {["#e74c3c", "#f39c12", "#f1c40f", "#2ecc71", "#1abc9c"].map((c) => (
+              <div key={c} style={{ flex: 1, background: c }} />
+            ))}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: 180,
+              marginTop: 3,
+              color: "#666",
+            }}
+          >
+            <span>30</span>
+            <span>40</span>
+            <span>50</span>
+            <span>55</span>
+            <span>65</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

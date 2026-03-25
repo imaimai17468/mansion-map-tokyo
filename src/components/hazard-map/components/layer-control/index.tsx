@@ -32,6 +32,17 @@ export const LayerControl = memo(function LayerControl({
         <input
           type="radio"
           name="layer"
+          checked={activeLayer === "composite"}
+          onChange={() => onChange("composite")}
+        />
+        総合（立地安全偏差値）
+      </label>
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 4 }}
+      >
+        <input
+          type="radio"
+          name="layer"
           checked={activeLayer === "boring"}
           onChange={() => onChange("boring")}
         />

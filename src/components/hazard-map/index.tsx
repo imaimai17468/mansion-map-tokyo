@@ -9,6 +9,7 @@ import type { ActiveLayer } from "./types";
 
 const CHOROPLETH_URL = "/data/choropleth.pmtiles";
 const FLOOD_URL = "/data/flood.pmtiles";
+const COMPOSITE_URL = "/data/composite.pmtiles";
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
 const DEPTH_STEPS = [5, 15, 30, 50];
@@ -40,19 +41,24 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       attribution:
         "出典: <a href='https://disaportal.gsi.go.jp/hazardmapportal/hazardmap/copyright/opendata.html' target='_blank'>ハザードマップポータルサイト</a>",
     },
+    composite: {
+      type: "vector",
+      url: `pmtiles://${COMPOSITE_URL}`,
+    },
   },
   layers: [{ id: "carto", type: "raster", source: "carto" }],
 };
 
 const BORING_LAYER_IDS = ["choropleth-fill", "choropleth-line"];
 const FLOOD_LAYER_IDS = ["flood-fill", "flood-line"];
+const COMPOSITE_LAYER_IDS = ["composite-fill", "composite-line"];
 
 export default function HazardMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeLayer, setActiveLayer] = useState<ActiveLayer>("boring");
+  const [activeLayer, setActiveLayer] = useState<ActiveLayer>("composite");
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -104,6 +110,7 @@ export default function HazardMap() {
           ],
           "fill-opacity": 0.6,
         },
+        layout: { visibility: "none" },
       });
 
       map.addLayer({
@@ -115,6 +122,7 @@ export default function HazardMap() {
           "line-color": "#fff",
           "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 14, 1],
         },
+        layout: { visibility: "none" },
       });
 
       // Flood vector layers (initially hidden)
@@ -152,9 +160,46 @@ export default function HazardMap() {
         layout: { visibility: "none" },
       });
 
-      map.on("click", "choropleth-fill", handleClick);
-      map.on("click", "flood-fill", handleClick);
-      for (const id of ["choropleth-fill", "flood-fill"]) {
+      // Composite vector layers (default visible)
+      map.addLayer({
+        id: "composite-fill",
+        type: "fill",
+        source: "composite",
+        "source-layer": "composite",
+        paint: {
+          "fill-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "composite"],
+            30,
+            "#e74c3c",
+            40,
+            "#f39c12",
+            50,
+            "#f1c40f",
+            55,
+            "#2ecc71",
+            65,
+            "#1abc9c",
+          ],
+          "fill-opacity": 0.6,
+        },
+      });
+
+      map.addLayer({
+        id: "composite-line",
+        type: "line",
+        source: "composite",
+        "source-layer": "composite",
+        paint: {
+          "line-color": "#fff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 14, 1],
+        },
+      });
+
+      const clickLayers = ["choropleth-fill", "flood-fill", "composite-fill"];
+      for (const id of clickLayers) {
+        map.on("click", id, handleClick);
         map.on("mouseenter", id, () => {
           map.getCanvas().style.cursor = "pointer";
         });
@@ -183,11 +228,14 @@ export default function HazardMap() {
     const map = mapRef.current;
     if (!map || !map.getLayer("flood-fill")) return;
 
+    for (const id of BORING_LAYER_IDS) {
+      map.setLayoutProperty(id, "visibility", activeLayer === "boring" ? "visible" : "none");
+    }
     for (const id of FLOOD_LAYER_IDS) {
       map.setLayoutProperty(id, "visibility", activeLayer === "flood" ? "visible" : "none");
     }
-    for (const id of BORING_LAYER_IDS) {
-      map.setLayoutProperty(id, "visibility", activeLayer === "boring" ? "visible" : "none");
+    for (const id of COMPOSITE_LAYER_IDS) {
+      map.setLayoutProperty(id, "visibility", activeLayer === "composite" ? "visible" : "none");
     }
   }, [activeLayer]);
 
