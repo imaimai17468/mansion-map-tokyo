@@ -5,7 +5,8 @@ import { Protocol } from "pmtiles";
 import { formatPopup } from "./formatPopup";
 import { LayerControl } from "./components/layer-control";
 import { Legend } from "./components/legend";
-import type { ActiveLayer } from "./types";
+import type { ActiveLayer, ScoreFactor } from "./types";
+import { SCORE_FACTORS } from "./types";
 
 const CHOROPLETH_URL = "/data/choropleth.pmtiles";
 const FLOOD_URL = "/data/flood.pmtiles";
@@ -89,6 +90,21 @@ export default function HazardMap() {
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeLayer, setActiveLayer] = useState<ActiveLayer>("composite");
+  const [selectedFactors, setSelectedFactors] = useState<Set<ScoreFactor>>(
+    () => new Set(SCORE_FACTORS.map((f) => f.key)),
+  );
+
+  const toggleFactor = (factor: ScoreFactor) => {
+    setSelectedFactors((prev) => {
+      const next = new Set(prev);
+      if (next.has(factor)) {
+        if (next.size > 1) next.delete(factor);
+      } else {
+        next.add(factor);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -496,11 +512,52 @@ export default function HazardMap() {
     }
   }, [activeLayer]);
 
+  // Update composite fill-color when selected factors change
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer("composite-fill")) return;
+
+    const factors = Array.from(selectedFactors);
+    if (factors.length === 0) return;
+
+    // Build MapLibre expression: average of selected scores (skip 0 = no data)
+    // For each factor: ["case", [">", ["get", key], 0], ["get", key], null]
+    // Then sum non-null and divide by count
+    const sumExpr: unknown[] = ["+"];
+    const countExpr: unknown[] = ["+"];
+    for (const key of factors) {
+      sumExpr.push(["case", [">", ["coalesce", ["get", key], 0], 0], ["get", key], 0]);
+      countExpr.push(["case", [">", ["coalesce", ["get", key], 0], 0], 1, 0]);
+    }
+
+    const avgExpr = ["case", [">", countExpr, 0], ["/", sumExpr, countExpr], 50];
+
+    map.setPaintProperty("composite-fill", "fill-color", [
+      "interpolate",
+      ["linear"],
+      avgExpr,
+      30,
+      "#e74c3c",
+      40,
+      "#f39c12",
+      50,
+      "#f1c40f",
+      55,
+      "#2ecc71",
+      65,
+      "#1abc9c",
+    ]);
+  }, [selectedFactors]);
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100vh" }}>
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
       <LayerControl activeLayer={activeLayer} onChange={setActiveLayer} />
-      <Legend activeLayer={activeLayer} />
+      <Legend
+        activeLayer={activeLayer}
+        selectedFactors={selectedFactors}
+        onToggleFactor={toggleFactor}
+      />
       {isLoading && (
         <div
           style={{

@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
-import type { ActiveLayer } from "../../types";
+import type { ActiveLayer, ScoreFactor } from "../../types";
+import { SCORE_FACTORS } from "../../types";
 
 const DESCRIPTIONS: Record<ActiveLayer, string> = {
   composite:
@@ -71,7 +72,15 @@ function InfoToggle({ activeLayer }: { activeLayer: ActiveLayer }) {
   );
 }
 
-export const Legend = memo(function Legend({ activeLayer }: { activeLayer: ActiveLayer }) {
+export const Legend = memo(function Legend({
+  activeLayer,
+  selectedFactors,
+  onToggleFactor,
+}: {
+  activeLayer: ActiveLayer;
+  selectedFactors?: Set<ScoreFactor>;
+  onToggleFactor?: (factor: ScoreFactor) => void;
+}) {
   return (
     <div
       style={{
@@ -224,6 +233,32 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
             <span>55</span>
             <span>65</span>
           </div>
+          {selectedFactors && onToggleFactor && (
+            <div style={{ marginTop: 8, borderTop: "1px solid #eee", paddingTop: 6 }}>
+              <div style={{ fontSize: 10, color: "#666", marginBottom: 4 }}>算出項目:</div>
+              {SCORE_FACTORS.map(({ key, label }) => (
+                <label
+                  key={key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    cursor: "pointer",
+                    fontSize: 10,
+                    marginTop: 2,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedFactors.has(key)}
+                    onChange={() => onToggleFactor(key)}
+                    style={{ width: 12, height: 12 }}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {activeLayer === "landprice" && (
