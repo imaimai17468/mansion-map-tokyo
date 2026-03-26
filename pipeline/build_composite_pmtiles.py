@@ -9,19 +9,18 @@ Build composite.pmtiles: 町丁目ごとの立地安全偏差値
 """
 
 import gzip
-import io
 import os
 import subprocess
 import sys
 import tempfile
-import zipfile
 from pathlib import Path
-from urllib.request import Request, urlopen
 
 import geopandas as gpd
 import mapbox_vector_tile
 import numpy as np
 from pmtiles.reader import MmapSource, Reader
+
+from shared import download_oaza, strip_chome
 
 ROOT = Path(__file__).resolve().parent.parent
 CHOROPLETH_PATH = ROOT / "public" / "data" / "choropleth.pmtiles"
@@ -33,36 +32,13 @@ ACCESS_PATH = ROOT / "public" / "data" / "access.pmtiles"
 MANSION_PATH = ROOT / "public" / "data" / "mansion.pmtiles"
 OUTPUT_PATH = ROOT / "public" / "data" / "composite.pmtiles"
 
-ESTAT_URL = (
-    "https://www.e-stat.go.jp/gis/statmap-search/data"
-    "?dlserveyId=A002005212020&code=13&coordSys=1&format=shape"
-    "&downloadType=5&datum=2011"
-)
-
-
-def download_chochome():
-    """Download cho-chome boundary Shapefile from e-Stat."""
-    print("Downloading cho-chome boundaries from e-Stat...")
-    req = Request(ESTAT_URL, headers={"User-Agent": "Mozilla/5.0"})
-    with urlopen(req, timeout=120) as resp:
-        zip_data = resp.read()
-    print(f"  Downloaded {len(zip_data) / 1024 / 1024:.1f} MB")
-
-    tmpdir = tempfile.mkdtemp()
-    with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
-        zf.extractall(tmpdir)
-
-    shp_files = list(Path(tmpdir).rglob("*.shp"))
-    gdf = gpd.read_file(shp_files[0])
-    gdf = gdf.rename(columns={"CITY_NAME": "city", "S_NAME": "area"})
-    gdf = gdf[gdf["area"].notna() & (gdf["area"] != "")].copy()
-    gdf = gdf.to_crs("EPSG:4326")
-    print(f"  {len(gdf)} cho-chome")
-    return gdf
-
 
 def extract_attributes(pmtiles_path, fields):
-    """Extract attributes from a PMTiles file by scanning tiles."""
+    """Extract attributes from a PMTiles file by scanning tiles.
+
+    Keys are normalized to oaza level using strip_chome so they match the
+    oaza-level boundaries produced by download_oaza().
+    """
     print(f"Extracting attributes from {pmtiles_path.name}...")
     records = {}
 
@@ -86,11 +62,13 @@ def extract_attributes(pmtiles_path, fields):
                 for layer in decoded.values():
                     for feat in layer["features"]:
                         props = feat["properties"]
-                        key = f"{props.get('city', '')}_{props.get('area', '')}"
+                        city = props.get("city", "")
+                        area = props.get("area", "")
+                        key = f"{city}_{strip_chome(area)}"
                         if key not in records:
                             records[key] = {f: props.get(f) for f in fields}
-                            records[key]["city"] = props.get("city", "")
-                            records[key]["area"] = props.get("area", "")
+                            records[key]["city"] = city
+                            records[key]["area"] = area
 
     print(f"  Extracted {len(records)} records")
     return records
@@ -116,8 +94,8 @@ def compute_deviation_score(values, invert=False):
 
 
 def main():
-    # Step 1: Download cho-chome boundaries
-    chochome = download_chochome()
+    # Step 1: Download oaza boundaries
+    oaza = download_oaza()
 
     # Step 2: Extract boring attributes
     boring_data = extract_attributes(
@@ -154,150 +132,152 @@ def main():
         MANSION_PATH, ["mansion_price_tsubo", "mansion_cnt"]
     )
 
-    # Step 9: Join attributes to cho-chome
-    chochome["_key"] = chochome["city"] + "_" + chochome["area"]
+    # Step 9: Join attributes to oaza (use strip_chome for key matching)
+    oaza["_key"] = oaza.apply(
+        lambda r: r["city"] + "_" + strip_chome(r["area"]), axis=1
+    )
 
     # Boring join
     boring_vals = []
-    for key in chochome["_key"]:
+    for key in oaza["_key"]:
         rec = boring_data.get(key, {})
         boring_vals.append(rec.get("n50_med"))
-    chochome["n50_med"] = boring_vals
+    oaza["n50_med"] = boring_vals
 
     # Flood join
     flood_vals = []
-    for key in chochome["_key"]:
+    for key in oaza["_key"]:
         rec = flood_data.get(key, {})
         flood_vals.append(rec.get("flood_rank", 0) or 0)
-    chochome["flood_rank"] = flood_vals
+    oaza["flood_rank"] = flood_vals
 
     # Land price join
     price_vals = []
-    for key in chochome["_key"]:
+    for key in oaza["_key"]:
         rec = price_data.get(key, {})
         price_vals.append(rec.get("price_med"))
-    chochome["price_med"] = price_vals
+    oaza["price_med"] = price_vals
 
     # Crime join
     crime_vals = []
-    for key in chochome["_key"]:
+    for key in oaza["_key"]:
         rec = crime_data.get(key, {})
         crime_vals.append(rec.get("crime_total"))
-    chochome["crime_total"] = crime_vals
+    oaza["crime_total"] = crime_vals
 
     # Liquefaction join
     liq_vals = []
-    for key in chochome["_key"]:
+    for key in oaza["_key"]:
         rec = liq_data.get(key, {})
         liq_vals.append(rec.get("liq_max"))
-    chochome["liq_max"] = liq_vals
+    oaza["liq_max"] = liq_vals
 
     # Access join
     access_vals = []
-    for key in chochome["_key"]:
+    for key in oaza["_key"]:
         rec = access_data.get(key, {})
         access_vals.append(rec.get("access_index"))
-    chochome["access_index"] = access_vals
+    oaza["access_index"] = access_vals
 
     # Mansion price join
     mansion_vals = []
-    for key in chochome["_key"]:
+    for key in oaza["_key"]:
         rec = mansion_data.get(key, {})
         mansion_vals.append(rec.get("mansion_price_tsubo"))
-    chochome["mansion_price_tsubo"] = mansion_vals
+    oaza["mansion_price_tsubo"] = mansion_vals
 
     # Stats
-    has_boring = chochome["n50_med"].notna().sum()
-    has_flood = (chochome["flood_rank"] > 0).sum()
-    has_price = chochome["price_med"].notna().sum()
-    has_crime = chochome["crime_total"].notna().sum()
-    has_liq = chochome["liq_max"].notna().sum()
-    has_access = chochome["access_index"].notna().sum()
-    has_mansion = chochome["mansion_price_tsubo"].notna().sum()
+    has_boring = oaza["n50_med"].notna().sum()
+    has_flood = (oaza["flood_rank"] > 0).sum()
+    has_price = oaza["price_med"].notna().sum()
+    has_crime = oaza["crime_total"].notna().sum()
+    has_liq = oaza["liq_max"].notna().sum()
+    has_access = oaza["access_index"].notna().sum()
+    has_mansion = oaza["mansion_price_tsubo"].notna().sum()
     print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price, {has_crime} crime, {has_liq} liq, {has_access} access, {has_mansion} mansion")
 
-    # Step 7: Compute 偏差値
+    # Compute 偏差値
     # Ground score: lower n50_med = shallower bedrock = better → invert
-    chochome["ground_score"] = compute_deviation_score(
-        chochome["n50_med"].fillna(chochome["n50_med"].median()).values,
+    oaza["ground_score"] = compute_deviation_score(
+        oaza["n50_med"].fillna(oaza["n50_med"].median()).values,
         invert=True,
     )
 
     # Flood score: lower flood_rank = less risk = better → invert
-    chochome["flood_score"] = compute_deviation_score(
-        chochome["flood_rank"].values,
+    oaza["flood_score"] = compute_deviation_score(
+        oaza["flood_rank"].values,
         invert=True,
     )
 
-    # Price score: only for cho-chome with actual price data
-    has_price_mask = chochome["price_med"].notna()
-    price_scores = np.full(len(chochome), np.nan)
+    # Price score: only for oaza with actual price data
+    has_price_mask = oaza["price_med"].notna()
+    price_scores = np.full(len(oaza), np.nan)
     if has_price_mask.sum() > 1:
         price_scores[has_price_mask] = compute_deviation_score(
-            chochome.loc[has_price_mask, "price_med"].values,
+            oaza.loc[has_price_mask, "price_med"].values,
             invert=True,
         )
-    chochome["price_score"] = price_scores
+    oaza["price_score"] = price_scores
 
     # Crime score: lower crime = safer = better → invert
-    has_crime_mask = chochome["crime_total"].notna()
-    crime_scores = np.full(len(chochome), np.nan)
+    has_crime_mask = oaza["crime_total"].notna()
+    crime_scores = np.full(len(oaza), np.nan)
     if has_crime_mask.sum() > 1:
         crime_scores[has_crime_mask] = compute_deviation_score(
-            chochome.loc[has_crime_mask, "crime_total"].values,
+            oaza.loc[has_crime_mask, "crime_total"].values,
             invert=True,
         )
-    chochome["crime_score"] = crime_scores
+    oaza["crime_score"] = crime_scores
 
     # Liquefaction score: lower liq_max = less risk = better → invert
-    has_liq_mask = chochome["liq_max"].notna()
-    liq_scores = np.full(len(chochome), np.nan)
+    has_liq_mask = oaza["liq_max"].notna()
+    liq_scores = np.full(len(oaza), np.nan)
     if has_liq_mask.sum() > 1:
         liq_scores[has_liq_mask] = compute_deviation_score(
-            chochome.loc[has_liq_mask, "liq_max"].values,
+            oaza.loc[has_liq_mask, "liq_max"].values,
             invert=True,
         )
-    chochome["liq_score"] = liq_scores
+    oaza["liq_score"] = liq_scores
 
     # Access score: lower access_index = closer to downtown = better → invert
-    has_access_mask = chochome["access_index"].notna()
-    access_scores = np.full(len(chochome), np.nan)
+    has_access_mask = oaza["access_index"].notna()
+    access_scores = np.full(len(oaza), np.nan)
     if has_access_mask.sum() > 1:
         access_scores[has_access_mask] = compute_deviation_score(
-            chochome.loc[has_access_mask, "access_index"].values,
+            oaza.loc[has_access_mask, "access_index"].values,
             invert=True,
         )
-    chochome["access_score"] = access_scores
+    oaza["access_score"] = access_scores
 
     # Mansion score: lower price = more affordable = better → invert
-    has_mansion_mask = chochome["mansion_price_tsubo"].notna()
-    mansion_scores = np.full(len(chochome), np.nan)
+    has_mansion_mask = oaza["mansion_price_tsubo"].notna()
+    mansion_scores = np.full(len(oaza), np.nan)
     if has_mansion_mask.sum() > 1:
         mansion_scores[has_mansion_mask] = compute_deviation_score(
-            chochome.loc[has_mansion_mask, "mansion_price_tsubo"].values,
+            oaza.loc[has_mansion_mask, "mansion_price_tsubo"].values,
             invert=True,
         )
-    chochome["mansion_score"] = mansion_scores
+    oaza["mansion_score"] = mansion_scores
 
     # Composite: average of available scores
-    scores = chochome[["ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score", "mansion_score"]]
-    chochome["composite"] = scores.mean(axis=1, skipna=True).round(1)
+    scores = oaza[["ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score", "mansion_score"]]
+    oaza["composite"] = scores.mean(axis=1, skipna=True).round(1)
 
     # Add labels
-    chochome["n50_med"] = chochome["n50_med"].round(1)
-    chochome["price_med"] = chochome["price_med"].round(0)
+    oaza["n50_med"] = oaza["n50_med"].round(1)
+    oaza["price_med"] = oaza["price_med"].round(0)
 
     # Replace NaN with 0 for PMTiles output (0 = no data)
-    chochome["price_score"] = chochome["price_score"].fillna(0).round(1)
-    chochome["crime_score"] = chochome["crime_score"].fillna(0).round(1)
-    chochome["liq_score"] = chochome["liq_score"].fillna(0).round(1)
-    chochome["access_score"] = chochome["access_score"].fillna(0).round(1)
-    chochome["mansion_score"] = chochome["mansion_score"].fillna(0).round(1)
+    oaza["price_score"] = oaza["price_score"].fillna(0).round(1)
+    oaza["crime_score"] = oaza["crime_score"].fillna(0).round(1)
+    oaza["liq_score"] = oaza["liq_score"].fillna(0).round(1)
+    oaza["access_score"] = oaza["access_score"].fillna(0).round(1)
+    oaza["mansion_score"] = oaza["mansion_score"].fillna(0).round(1)
 
     # Keep only needed columns
-    out = chochome[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total", "liq_max", "access_index", "mansion_price_tsubo",
-                     "ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score", "mansion_score",
-                     "composite", "geometry"]].copy()
+    out = oaza[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total", "liq_max", "access_index", "mansion_price_tsubo",
+                "ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score", "mansion_score",
+                "composite", "geometry"]].copy()
 
     print(f"\n偏差値 stats:")
     print(f"  Ground: mean={out['ground_score'].mean():.1f}, "

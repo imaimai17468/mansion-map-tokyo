@@ -20,15 +20,10 @@ from urllib.request import Request, urlopen
 import geopandas as gpd
 from shapely.geometry import shape
 
+from shared import download_oaza
+
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = ROOT / "public" / "data" / "flood.pmtiles"
-
-# e-Stat 2020 国勢調査 小地域 境界データ (東京都)
-ESTAT_URL = (
-    "https://www.e-stat.go.jp/gis/statmap-search/data"
-    "?dlserveyId=A002005212020&code=13&coordSys=1&format=shape"
-    "&downloadType=5&datum=2011"
-)
 
 # 国土数値情報 A31a 洪水浸水想定区域 東京都
 FLOOD_URLS = [
@@ -44,37 +39,6 @@ DEPTH_LABEL = {
     0: "浸水想定なし",
     1: "~0.5m", 2: "0.5~3m", 3: "3~5m", 4: "5~10m", 5: "10~20m", 6: "20m~",
 }
-
-
-def download_chochome():
-    """Download cho-chome boundary Shapefile from e-Stat."""
-    print("Downloading cho-chome boundaries from e-Stat...")
-    req = Request(ESTAT_URL, headers={"User-Agent": "Mozilla/5.0"})
-    with urlopen(req, timeout=120) as resp:
-        zip_data = resp.read()
-    print(f"  Downloaded {len(zip_data) / 1024 / 1024:.1f} MB")
-
-    tmpdir = tempfile.mkdtemp()
-    with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
-        zf.extractall(tmpdir)
-
-    # Find .shp file
-    shp_files = list(Path(tmpdir).rglob("*.shp"))
-    if not shp_files:
-        print("ERROR: No .shp file found in download")
-        sys.exit(1)
-
-    gdf = gpd.read_file(shp_files[0])
-    print(f"  {len(gdf)} polygons, columns: {list(gdf.columns)}")
-
-    # Rename to match existing choropleth naming
-    gdf = gdf.rename(columns={"CITY_NAME": "city", "S_NAME": "area"})
-    # Filter out records without cho-chome name
-    gdf = gdf[gdf["area"].notna() & (gdf["area"] != "")].copy()
-    # Ensure WGS84
-    gdf = gdf.to_crs("EPSG:4326")
-    print(f"  {len(gdf)} cho-chome with names")
-    return gdf
 
 
 def download_flood_data():
@@ -187,12 +151,12 @@ def to_pmtiles(gdf, output_path):
 
 
 def main():
-    chochome = download_chochome()
+    oaza = download_oaza()
     flood = download_flood_data()
     if not flood:
         print("ERROR: No flood data")
         sys.exit(1)
-    result = spatial_join(chochome, flood)
+    result = spatial_join(oaza, flood)
     to_pmtiles(result, OUTPUT_PATH)
 
 

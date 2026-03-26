@@ -23,15 +23,11 @@ from urllib.request import Request, urlopen
 import geopandas as gpd
 import numpy as np
 
+from shared import download_oaza
+
 ROOT = Path(__file__).resolve().parent.parent
 STATION_GEOJSON = ROOT / "data" / "N02" / "UTF-8" / "N02-24_Station.geojson"
 OUTPUT_PATH = ROOT / "public" / "data" / "access.pmtiles"
-
-ESTAT_URL = (
-    "https://www.e-stat.go.jp/gis/statmap-search/data"
-    "?dlserveyId=A002005212020&code=13&coordSys=1&format=shape"
-    "&downloadType=5&datum=2011"
-)
 
 # Target stations with weights
 # 東京:新宿:渋谷:品川 = 6:2:1:1
@@ -49,26 +45,6 @@ TIME_PER_STATION = 2.0
 TRANSFER_PENALTY = 5.0
 # Walking speed (m/min) for cho-chome to nearest station
 WALK_SPEED = 80  # ~4.8 km/h
-
-
-def download_chochome():
-    """Download cho-chome boundaries from e-Stat."""
-    print("Downloading cho-chome boundaries from e-Stat...")
-    req = Request(ESTAT_URL, headers={"User-Agent": "Mozilla/5.0"})
-    with urlopen(req, timeout=120) as resp:
-        zip_data = resp.read()
-
-    tmpdir = tempfile.mkdtemp()
-    with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
-        zf.extractall(tmpdir)
-
-    shp_files = list(Path(tmpdir).rglob("*.shp"))
-    gdf = gpd.read_file(shp_files[0])
-    gdf = gdf.rename(columns={"CITY_NAME": "city", "S_NAME": "area"})
-    gdf = gdf[gdf["area"].notna() & (gdf["area"] != "")].copy()
-    gdf = gdf.to_crs("EPSG:4326")
-    print(f"  {len(gdf)} cho-chome")
-    return gdf
 
 
 def load_stations():
@@ -288,10 +264,10 @@ def to_pmtiles(gdf, output_path):
 
 
 def main():
-    chochome = download_chochome()
+    oaza = download_oaza()
     stations, raw_features = load_stations()
     stations = compute_access_index(stations, raw_features)
-    result = assign_to_chochome(chochome, stations)
+    result = assign_to_chochome(oaza, stations)
     to_pmtiles(result, OUTPUT_PATH)
 
 

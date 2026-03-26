@@ -20,15 +20,11 @@ from urllib.request import Request, urlopen
 import geopandas as gpd
 import numpy as np
 
+from shared import download_oaza
+
 ROOT = Path(__file__).resolve().parent.parent
 LIQUEFACTION_GEOJSON = ROOT / "data" / "liquefaction" / "liquefaction_pl.geojson"
 OUTPUT_PATH = ROOT / "public" / "data" / "liquefaction.pmtiles"
-
-ESTAT_URL = (
-    "https://www.e-stat.go.jp/gis/statmap-search/data"
-    "?dlserveyId=A002005212020&code=13&coordSys=1&format=shape"
-    "&downloadType=5&datum=2011"
-)
 
 # PL区分 → numeric risk (higher = worse)
 PL_RANK = {
@@ -43,26 +39,6 @@ PL_LABEL = {
     2: "中（5<PL≦15）",
     3: "高（PL>15）",
 }
-
-
-def download_chochome():
-    """Download cho-chome boundaries from e-Stat."""
-    print("Downloading cho-chome boundaries from e-Stat...")
-    req = Request(ESTAT_URL, headers={"User-Agent": "Mozilla/5.0"})
-    with urlopen(req, timeout=120) as resp:
-        zip_data = resp.read()
-
-    tmpdir = tempfile.mkdtemp()
-    with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
-        zf.extractall(tmpdir)
-
-    shp_files = list(Path(tmpdir).rglob("*.shp"))
-    gdf = gpd.read_file(shp_files[0])
-    gdf = gdf.rename(columns={"CITY_NAME": "city", "S_NAME": "area"})
-    gdf = gdf[gdf["area"].notna() & (gdf["area"] != "")].copy()
-    gdf = gdf.to_crs("EPSG:4326")
-    print(f"  {len(gdf)} cho-chome")
-    return gdf
 
 
 def load_liquefaction():
@@ -158,9 +134,9 @@ def to_pmtiles(gdf, output_path):
 
 
 def main():
-    chochome = download_chochome()
+    oaza = download_oaza()
     liq = load_liquefaction()
-    result = spatial_join(chochome, liq)
+    result = spatial_join(oaza, liq)
     to_pmtiles(result, OUTPUT_PATH)
 
 

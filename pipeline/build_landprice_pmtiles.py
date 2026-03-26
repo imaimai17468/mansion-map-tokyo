@@ -21,14 +21,10 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import shape
 
+from shared import download_oaza
+
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = ROOT / "public" / "data" / "landprice.pmtiles"
-
-ESTAT_URL = (
-    "https://www.e-stat.go.jp/gis/statmap-search/data"
-    "?dlserveyId=A002005212020&code=13&coordSys=1&format=shape"
-    "&downloadType=5&datum=2011"
-)
 
 # 国土数値情報 L01 地価公示 2025年 東京都
 LANDPRICE_URL = "https://nlftp.mlit.go.jp/ksj/gml/data/L01/L01-25/L01-25_13_GML.zip"
@@ -42,27 +38,6 @@ USE_LABELS = {
     "010": "市街化調整区域内宅地",
     "013": "林地",
 }
-
-
-def download_chochome():
-    """Download cho-chome boundaries from e-Stat."""
-    print("Downloading cho-chome boundaries from e-Stat...")
-    req = Request(ESTAT_URL, headers={"User-Agent": "Mozilla/5.0"})
-    with urlopen(req, timeout=120) as resp:
-        zip_data = resp.read()
-    print(f"  Downloaded {len(zip_data) / 1024 / 1024:.1f} MB")
-
-    tmpdir = tempfile.mkdtemp()
-    with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
-        zf.extractall(tmpdir)
-
-    shp_files = list(Path(tmpdir).rglob("*.shp"))
-    gdf = gpd.read_file(shp_files[0])
-    gdf = gdf.rename(columns={"CITY_NAME": "city", "S_NAME": "area"})
-    gdf = gdf[gdf["area"].notna() & (gdf["area"] != "")].copy()
-    gdf = gdf.to_crs("EPSG:4326")
-    print(f"  {len(gdf)} cho-chome")
-    return gdf
 
 
 def download_landprice():
@@ -179,9 +154,9 @@ def to_pmtiles(gdf, output_path):
 
 
 def main():
-    chochome = download_chochome()
+    oaza = download_oaza()
     prices = download_landprice()
-    result = spatial_join(chochome, prices)
+    result = spatial_join(oaza, prices)
     to_pmtiles(result, OUTPUT_PATH)
 
 
