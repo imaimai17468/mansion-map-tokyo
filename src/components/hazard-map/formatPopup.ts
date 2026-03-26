@@ -29,6 +29,8 @@ export function formatPopup(p: Record<string, unknown>): string {
     const crimeStr = p.crime_score && p.crime_score !== 0 ? `${p.crime_score}` : "データなし";
     const liqStr = p.liq_score && p.liq_score !== 0 ? `${p.liq_score}` : "データなし";
     const accessStr = p.access_score && p.access_score !== 0 ? `${p.access_score}` : "データなし";
+    const mansionStr =
+      p.mansion_score && p.mansion_score !== 0 ? `${p.mansion_score}` : "データなし";
     return `<strong>${name}</strong><br/>
       総合偏差値: <strong>${p.composite}</strong><br/>
       地盤スコア: ${p.ground_score}<br/>
@@ -36,7 +38,8 @@ export function formatPopup(p: Record<string, unknown>): string {
       液状化スコア: ${liqStr}<br/>
       地価スコア: ${priceStr}<br/>
       治安スコア: ${crimeStr}<br/>
-      アクセススコア: ${accessStr}`;
+      アクセススコア: ${accessStr}<br/>
+      マンション価格スコア: ${mansionStr}`;
   }
 
   // Liquefaction layer

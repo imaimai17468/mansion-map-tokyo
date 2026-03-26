@@ -30,6 +30,7 @@ LANDPRICE_PATH = ROOT / "public" / "data" / "landprice.pmtiles"
 CRIME_PATH = ROOT / "public" / "data" / "crime.pmtiles"
 LIQUEFACTION_PATH = ROOT / "public" / "data" / "liquefaction.pmtiles"
 ACCESS_PATH = ROOT / "public" / "data" / "access.pmtiles"
+MANSION_PATH = ROOT / "public" / "data" / "mansion.pmtiles"
 OUTPUT_PATH = ROOT / "public" / "data" / "composite.pmtiles"
 
 ESTAT_URL = (
@@ -148,7 +149,12 @@ def main():
         ACCESS_PATH, ["access_index", "nearest_station"]
     )
 
-    # Step 8: Join attributes to cho-chome
+    # Step 8: Extract mansion price attributes
+    mansion_data = extract_attributes(
+        MANSION_PATH, ["mansion_price_tsubo", "mansion_cnt"]
+    )
+
+    # Step 9: Join attributes to cho-chome
     chochome["_key"] = chochome["city"] + "_" + chochome["area"]
 
     # Boring join
@@ -193,6 +199,13 @@ def main():
         access_vals.append(rec.get("access_index"))
     chochome["access_index"] = access_vals
 
+    # Mansion price join
+    mansion_vals = []
+    for key in chochome["_key"]:
+        rec = mansion_data.get(key, {})
+        mansion_vals.append(rec.get("mansion_price_tsubo"))
+    chochome["mansion_price_tsubo"] = mansion_vals
+
     # Stats
     has_boring = chochome["n50_med"].notna().sum()
     has_flood = (chochome["flood_rank"] > 0).sum()
@@ -200,7 +213,8 @@ def main():
     has_crime = chochome["crime_total"].notna().sum()
     has_liq = chochome["liq_max"].notna().sum()
     has_access = chochome["access_index"].notna().sum()
-    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price, {has_crime} crime, {has_liq} liq, {has_access} access")
+    has_mansion = chochome["mansion_price_tsubo"].notna().sum()
+    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price, {has_crime} crime, {has_liq} liq, {has_access} access, {has_mansion} mansion")
 
     # Step 7: Compute 偏差値
     # Ground score: lower n50_med = shallower bedrock = better → invert
@@ -255,8 +269,18 @@ def main():
         )
     chochome["access_score"] = access_scores
 
+    # Mansion score: lower price = more affordable = better → invert
+    has_mansion_mask = chochome["mansion_price_tsubo"].notna()
+    mansion_scores = np.full(len(chochome), np.nan)
+    if has_mansion_mask.sum() > 1:
+        mansion_scores[has_mansion_mask] = compute_deviation_score(
+            chochome.loc[has_mansion_mask, "mansion_price_tsubo"].values,
+            invert=True,
+        )
+    chochome["mansion_score"] = mansion_scores
+
     # Composite: average of available scores
-    scores = chochome[["ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score"]]
+    scores = chochome[["ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score", "mansion_score"]]
     chochome["composite"] = scores.mean(axis=1, skipna=True).round(1)
 
     # Add labels
@@ -268,10 +292,11 @@ def main():
     chochome["crime_score"] = chochome["crime_score"].fillna(0).round(1)
     chochome["liq_score"] = chochome["liq_score"].fillna(0).round(1)
     chochome["access_score"] = chochome["access_score"].fillna(0).round(1)
+    chochome["mansion_score"] = chochome["mansion_score"].fillna(0).round(1)
 
     # Keep only needed columns
-    out = chochome[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total", "liq_max", "access_index",
-                     "ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score",
+    out = chochome[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total", "liq_max", "access_index", "mansion_price_tsubo",
+                     "ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score", "mansion_score",
                      "composite", "geometry"]].copy()
 
     print(f"\n偏差値 stats:")
@@ -287,6 +312,8 @@ def main():
           f"min={out['liq_score'].min()}, max={out['liq_score'].max()}")
     print(f"  Access: mean={out['access_score'].mean():.1f}, "
           f"min={out['access_score'].min()}, max={out['access_score'].max()}")
+    print(f"  Mansion:mean={out['mansion_score'].mean():.1f}, "
+          f"min={out['mansion_score'].min()}, max={out['mansion_score'].max()}")
     print(f"  Total:  mean={out['composite'].mean():.1f}, "
           f"min={out['composite'].min()}, max={out['composite'].max()}")
 
