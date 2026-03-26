@@ -12,6 +12,8 @@ const DESCRIPTIONS: Record<ActiveLayer, string> = {
   crime: "警視庁発表の町丁別認知件数（2025年）。凶悪犯・粗暴犯・窃盗などの内訳も確認可能。",
   access:
     "主要駅への推定所要時間の加重平均（東京×6 + 新宿×2 + 渋谷×1 + 品川×1）。徒歩時間込み。小さいほど良好。",
+  mansion:
+    "不動産情報ライブラリAPIによる中古マンション取引価格（2023-2025年）。町丁目の坪単価中央値を表示。",
 };
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
@@ -399,6 +401,52 @@ export const Legend = memo(function Legend({ activeLayer }: { activeLayer: Activ
           <div style={{ marginTop: 3, color: "#666", fontSize: 10 }}>
             東京×6 + 新宿×2 + 渋谷×1 + 品川×1
           </div>
+        </div>
+      )}
+      {activeLayer === "mansion" && (
+        <div>
+          <div
+            style={{
+              fontWeight: 600,
+              marginBottom: 6,
+              fontSize: 12,
+              letterSpacing: "0.02em",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            中古マンション坪単価
+            <InfoToggle activeLayer={activeLayer} />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              height: 10,
+              borderRadius: 5,
+              overflow: "hidden",
+              width: 180,
+            }}
+          >
+            {["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"].map((c) => (
+              <div key={c} style={{ flex: 1, background: c }} />
+            ))}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: 180,
+              marginTop: 3,
+              color: "#666",
+            }}
+          >
+            <span>150万</span>
+            <span>250万</span>
+            <span>400万</span>
+            <span>600万</span>
+            <span>1000万~</span>
+          </div>
+          <div style={{ marginTop: 3, color: "#666" }}>円/坪（2023-2025年）</div>
         </div>
       )}
     </div>

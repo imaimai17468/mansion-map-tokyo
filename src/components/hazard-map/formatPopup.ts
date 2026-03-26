@@ -1,6 +1,17 @@
 export function formatPopup(p: Record<string, unknown>): string {
   const name = `${p.city ?? ""}${p.area ?? ""}`;
 
+  // Mansion layer
+  if ("mansion_price_tsubo" in p && !("composite" in p)) {
+    if (!p.mansion_cnt || p.mansion_cnt === 0)
+      return `<strong>${name}</strong><br/>マンション取引データなし`;
+    return `<strong>${name}</strong><br/>
+      坪単価: ${p.mansion_label}<br/>
+      m²単価: ${Math.round(Number(p.mansion_price_m2) / 10000)}万円/m²<br/>
+      築年数中央値: ${p.mansion_age_med}年<br/>
+      取引件数: ${p.mansion_cnt}件`;
+  }
+
   // Access layer
   if ("access_index" in p && !("composite" in p)) {
     return `<strong>${name}</strong><br/>

@@ -103,6 +103,17 @@ export const LayerControl = memo(function LayerControl({
         />
         都心アクセス
       </label>
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 4 }}
+      >
+        <input
+          type="radio"
+          name="layer"
+          checked={activeLayer === "mansion"}
+          onChange={() => onChange("mansion")}
+        />
+        中古マンション価格
+      </label>
     </div>
   );
 });

@@ -5,4 +5,5 @@ export type ActiveLayer =
   | "landprice"
   | "crime"
   | "liquefaction"
-  | "access";
+  | "access"
+  | "mansion";

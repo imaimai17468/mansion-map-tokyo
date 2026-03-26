@@ -14,6 +14,7 @@ const LANDPRICE_URL = "/data/landprice.pmtiles";
 const CRIME_URL_TILE = "/data/crime.pmtiles";
 const LIQUEFACTION_URL = "/data/liquefaction.pmtiles";
 const ACCESS_URL = "/data/access.pmtiles";
+const MANSION_URL = "/data/mansion.pmtiles";
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
 const DEPTH_STEPS = [5, 15, 30, 50];
@@ -65,6 +66,10 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       type: "vector",
       url: `pmtiles://${ACCESS_URL}`,
     },
+    mansion: {
+      type: "vector",
+      url: `pmtiles://${MANSION_URL}`,
+    },
   },
   layers: [{ id: "carto", type: "raster", source: "carto" }],
 };
@@ -76,6 +81,7 @@ const LANDPRICE_LAYER_IDS = ["landprice-fill", "landprice-line"];
 const CRIME_LAYER_IDS = ["crime-fill", "crime-line"];
 const LIQUEFACTION_LAYER_IDS = ["liquefaction-fill", "liquefaction-line"];
 const ACCESS_LAYER_IDS = ["access-fill", "access-line"];
+const MANSION_LAYER_IDS = ["mansion-fill", "mansion-line"];
 
 export default function HazardMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -388,6 +394,52 @@ export default function HazardMap() {
         layout: { visibility: "none" },
       });
 
+      // Mansion price vector layers (initially hidden)
+      map.addLayer({
+        id: "mansion-fill",
+        type: "fill",
+        source: "mansion",
+        "source-layer": "mansion",
+        paint: {
+          "fill-color": [
+            "case",
+            ["==", ["get", "mansion_cnt"], 0],
+            "rgba(200,200,200,0.3)",
+            [
+              "interpolate",
+              ["linear"],
+              ["get", "mansion_price_tsubo"],
+              1500000,
+              "#2ecc71",
+              2500000,
+              "#f1c40f",
+              4000000,
+              "#e67e22",
+              6000000,
+              "#e74c3c",
+              10000000,
+              "#8e44ad",
+            ],
+          ],
+          "fill-opacity": 0.6,
+        },
+        layout: { visibility: "none" },
+      });
+
+      map.addLayer({
+        id: "mansion-line",
+        type: "line",
+        source: "mansion",
+        "source-layer": "mansion",
+        paint: {
+          "line-color": "#fff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 14, 1],
+        },
+        layout: { visibility: "none" },
+      });
+
+      clickLayers.push("mansion-fill");
+
       for (const id of clickLayers) {
         map.on("click", id, handleClick);
         map.on("mouseenter", id, () => {
@@ -438,6 +490,9 @@ export default function HazardMap() {
     }
     for (const id of ACCESS_LAYER_IDS) {
       map.setLayoutProperty(id, "visibility", activeLayer === "access" ? "visible" : "none");
+    }
+    for (const id of MANSION_LAYER_IDS) {
+      map.setLayoutProperty(id, "visibility", activeLayer === "mansion" ? "visible" : "none");
     }
   }, [activeLayer]);
 
