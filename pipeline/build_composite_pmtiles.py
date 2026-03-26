@@ -119,7 +119,7 @@ def main():
         CRIME_PATH, ["crime_total"]
     )
 
-    # Step 6: Extract liquefaction attributes
+    # Step 6: Extract liquefaction attributes (need liq_cnt to distinguish no-data vs no-risk)
     liq_data = extract_attributes(
         LIQUEFACTION_PATH, ["liq_max", "liq_cnt"]
     )
@@ -177,11 +177,12 @@ def main():
         crime_vals.append(rec.get("crime_total"))
     oaza["crime_total"] = crime_vals
 
-    # Liquefaction join
+    # Liquefaction join (only assign value when survey points exist)
     liq_vals = []
     for key in oaza["_key"]:
         rec = liq_data.get(key, {})
-        liq_vals.append(rec.get("liq_max"))
+        cnt = rec.get("liq_cnt", 0) or 0
+        liq_vals.append(rec.get("liq_max") if cnt > 0 else None)
     oaza["liq_max"] = liq_vals
 
     # Access join
