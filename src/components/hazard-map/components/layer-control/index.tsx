@@ -114,6 +114,17 @@ export const LayerControl = memo(function LayerControl({
         />
         中古マンション価格
       </label>
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 4 }}
+      >
+        <input
+          type="radio"
+          name="layer"
+          checked={activeLayer === "shops"}
+          onChange={() => onChange("shops")}
+        />
+        スーパー・コンビニ
+      </label>
     </div>
   );
 });

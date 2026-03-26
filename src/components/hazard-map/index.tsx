@@ -16,6 +16,7 @@ const CRIME_URL_TILE = "/data/crime.pmtiles";
 const LIQUEFACTION_URL = "/data/liquefaction.pmtiles";
 const ACCESS_URL = "/data/access.pmtiles";
 const MANSION_URL = "/data/mansion.pmtiles";
+const SHOPS_URL = "/data/shops.pmtiles";
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
 const DEPTH_STEPS = [5, 15, 30, 50];
@@ -71,6 +72,10 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       type: "vector",
       url: `pmtiles://${MANSION_URL}`,
     },
+    shops: {
+      type: "vector",
+      url: `pmtiles://${SHOPS_URL}`,
+    },
   },
   layers: [{ id: "carto", type: "raster", source: "carto" }],
 };
@@ -83,6 +88,7 @@ const CRIME_LAYER_IDS = ["crime-fill", "crime-line"];
 const LIQUEFACTION_LAYER_IDS = ["liquefaction-fill", "liquefaction-line"];
 const ACCESS_LAYER_IDS = ["access-fill", "access-line"];
 const MANSION_LAYER_IDS = ["mansion-fill", "mansion-line"];
+const SHOPS_LAYER_IDS = ["shops-fill", "shops-line"];
 
 export default function HazardMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -456,6 +462,47 @@ export default function HazardMap() {
 
       clickLayers.push("mansion-fill");
 
+      // Shops vector layers (initially hidden)
+      map.addLayer({
+        id: "shops-fill",
+        type: "fill",
+        source: "shops",
+        "source-layer": "shops",
+        paint: {
+          "fill-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "shop_total"],
+            0,
+            "rgba(200,200,200,0.3)",
+            3,
+            "#f1c40f",
+            10,
+            "#e67e22",
+            25,
+            "#2ecc71",
+            50,
+            "#1abc9c",
+          ],
+          "fill-opacity": 0.6,
+        },
+        layout: { visibility: "none" },
+      });
+
+      map.addLayer({
+        id: "shops-line",
+        type: "line",
+        source: "shops",
+        "source-layer": "shops",
+        paint: {
+          "line-color": "#fff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 14, 1],
+        },
+        layout: { visibility: "none" },
+      });
+
+      clickLayers.push("shops-fill");
+
       for (const id of clickLayers) {
         map.on("click", id, handleClick);
         map.on("mouseenter", id, () => {
@@ -509,6 +556,9 @@ export default function HazardMap() {
     }
     for (const id of MANSION_LAYER_IDS) {
       map.setLayoutProperty(id, "visibility", activeLayer === "mansion" ? "visible" : "none");
+    }
+    for (const id of SHOPS_LAYER_IDS) {
+      map.setLayoutProperty(id, "visibility", activeLayer === "shops" ? "visible" : "none");
     }
   }, [activeLayer]);
 
