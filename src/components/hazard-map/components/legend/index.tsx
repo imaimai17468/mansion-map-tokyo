@@ -80,8 +80,7 @@ function InfoToggle({ activeLayer }: { activeLayer: ActiveLayer }) {
             style={{
               position: "absolute",
               bottom: "calc(100% + 8px)",
-              left: "50%",
-              transform: "translateX(-50%)",
+              left: 0,
               width: 220,
               background: "white",
               borderRadius: 8,
