@@ -44,7 +44,7 @@ const PANEL_STYLE = {
 function InfoToggle({ activeLayer }: { activeLayer: ActiveLayer }) {
   const [open, setOpen] = useState(false);
   return (
-    <>
+    <span style={{ position: "relative", display: "inline-block" }}>
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
@@ -67,11 +67,37 @@ function InfoToggle({ activeLayer }: { activeLayer: ActiveLayer }) {
         ?
       </button>
       {open && (
-        <div style={{ marginTop: 6, color: "#666", fontSize: 10, lineHeight: 1.5 }}>
-          {DESCRIPTIONS[activeLayer]}
-        </div>
+        <>
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9,
+            }}
+            onClick={() => setOpen(false)}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: "calc(100% + 8px)",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 220,
+              background: "white",
+              borderRadius: 8,
+              padding: "10px 12px",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+              fontSize: 11,
+              color: "#555",
+              lineHeight: 1.6,
+              zIndex: 10,
+            }}
+          >
+            {DESCRIPTIONS[activeLayer]}
+          </div>
+        </>
       )}
-    </>
+    </span>
   );
 }
 
