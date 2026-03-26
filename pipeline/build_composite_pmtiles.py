@@ -31,6 +31,7 @@ LIQUEFACTION_PATH = ROOT / "public" / "data" / "liquefaction.pmtiles"
 ACCESS_PATH = ROOT / "public" / "data" / "access.pmtiles"
 MANSION_PATH = ROOT / "public" / "data" / "mansion.pmtiles"
 SHOPS_PATH = ROOT / "public" / "data" / "shops.pmtiles"
+MEDICAL_PATH = ROOT / "public" / "data" / "medical.pmtiles"
 OUTPUT_PATH = ROOT / "public" / "data" / "composite.pmtiles"
 
 
@@ -138,7 +139,12 @@ def main():
         SHOPS_PATH, ["shop_total"]
     )
 
-    # Step 10: Join attributes to oaza (use strip_chome for key matching)
+    # Step 10: Extract medical attributes
+    medical_data = extract_attributes(
+        MEDICAL_PATH, ["medical_total"]
+    )
+
+    # Step 11: Join attributes to oaza (use strip_chome for key matching)
     oaza["_key"] = oaza.apply(
         lambda r: r["city"] + "_" + strip_chome(r["area"]), axis=1
     )
@@ -199,6 +205,13 @@ def main():
         shops_vals.append(rec.get("shop_total"))
     oaza["shop_total"] = shops_vals
 
+    # Medical join
+    medical_vals = []
+    for key in oaza["_key"]:
+        rec = medical_data.get(key, {})
+        medical_vals.append(rec.get("medical_total"))
+    oaza["medical_total"] = medical_vals
+
     # Stats
     has_boring = oaza["n50_med"].notna().sum()
     has_flood = (oaza["flood_rank"] > 0).sum()
@@ -208,7 +221,8 @@ def main():
     has_access = oaza["access_index"].notna().sum()
     has_mansion = oaza["mansion_price_tsubo"].notna().sum()
     has_shops = oaza["shop_total"].notna().sum()
-    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price, {has_crime} crime, {has_liq} liq, {has_access} access, {has_mansion} mansion, {has_shops} shops")
+    has_medical = oaza["medical_total"].notna().sum()
+    print(f"  Matched: {has_boring} boring, {has_flood} flood, {has_price} price, {has_crime} crime, {has_liq} liq, {has_access} access, {has_mansion} mansion, {has_shops} shops, {has_medical} medical")
 
     # Compute 偏差値
     # Ground score: lower n50_med = shallower bedrock = better → invert
@@ -283,8 +297,18 @@ def main():
         )
     oaza["shops_score"] = shops_scores
 
+    # Medical score: more facilities = better → NOT inverted
+    has_medical_mask = oaza["medical_total"].notna()
+    medical_scores = np.full(len(oaza), np.nan)
+    if has_medical_mask.sum() > 1:
+        medical_scores[has_medical_mask] = compute_deviation_score(
+            oaza.loc[has_medical_mask, "medical_total"].values,
+            invert=False,
+        )
+    oaza["medical_score"] = medical_scores
+
     # Composite: average of available scores
-    scores = oaza[["ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score", "mansion_score", "shops_score"]]
+    scores = oaza[["ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score", "mansion_score", "shops_score", "medical_score"]]
     oaza["composite"] = scores.mean(axis=1, skipna=True).round(1)
 
     # Add labels
@@ -298,10 +322,11 @@ def main():
     oaza["access_score"] = oaza["access_score"].fillna(0).round(1)
     oaza["mansion_score"] = oaza["mansion_score"].fillna(0).round(1)
     oaza["shops_score"] = oaza["shops_score"].fillna(0).round(1)
+    oaza["medical_score"] = oaza["medical_score"].fillna(0).round(1)
 
     # Keep only needed columns
-    out = oaza[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total", "liq_max", "access_index", "mansion_price_tsubo", "shop_total",
-                "ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score", "mansion_score", "shops_score",
+    out = oaza[["city", "area", "n50_med", "flood_rank", "price_med", "crime_total", "liq_max", "access_index", "mansion_price_tsubo", "shop_total", "medical_total",
+                "ground_score", "flood_score", "price_score", "crime_score", "liq_score", "access_score", "mansion_score", "shops_score", "medical_score",
                 "composite", "geometry"]].copy()
 
     print(f"\n偏差値 stats:")
@@ -321,6 +346,8 @@ def main():
           f"min={out['mansion_score'].min()}, max={out['mansion_score'].max()}")
     print(f"  Shops:  mean={out['shops_score'].mean():.1f}, "
           f"min={out['shops_score'].min()}, max={out['shops_score'].max()}")
+    print(f"  Medical:mean={out['medical_score'].mean():.1f}, "
+          f"min={out['medical_score'].min()}, max={out['medical_score'].max()}")
     print(f"  Total:  mean={out['composite'].mean():.1f}, "
           f"min={out['composite'].min()}, max={out['composite'].max()}")
 

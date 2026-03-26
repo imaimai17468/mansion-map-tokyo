@@ -7,7 +7,8 @@ export type ActiveLayer =
   | "liquefaction"
   | "access"
   | "mansion"
-  | "shops";
+  | "shops"
+  | "medical";
 
 export type ScoreFactor =
   | "ground_score"
@@ -17,7 +18,8 @@ export type ScoreFactor =
   | "crime_score"
   | "access_score"
   | "mansion_score"
-  | "shops_score";
+  | "shops_score"
+  | "medical_score";
 
 export const SCORE_FACTORS: { key: ScoreFactor; label: string }[] = [
   { key: "ground_score", label: "地盤" },
@@ -28,4 +30,5 @@ export const SCORE_FACTORS: { key: ScoreFactor; label: string }[] = [
   { key: "access_score", label: "アクセス" },
   { key: "mansion_score", label: "マンション価格" },
   { key: "shops_score", label: "買い物利便性" },
+  { key: "medical_score", label: "医療施設" },
 ];

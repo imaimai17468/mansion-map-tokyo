@@ -1,6 +1,16 @@
 export function formatPopup(p: Record<string, unknown>): string {
   const name = `${p.city ?? ""}${p.area ?? ""}`;
 
+  // Medical layer
+  if ("medical_total" in p && !("composite" in p)) {
+    return `<strong>${name}</strong><br/>
+      医療施設合計: ${p.medical_total}<br/>
+      病院: ${p.hospital_cnt}<br/>
+      クリニック: ${p.clinic_cnt}<br/>
+      診療所: ${p.doctors_cnt}<br/>
+      薬局: ${p.pharmacy_cnt}`;
+  }
+
   // Shops layer
   if ("shop_total" in p && !("composite" in p)) {
     return `<strong>${name}</strong><br/>
@@ -40,6 +50,8 @@ export function formatPopup(p: Record<string, unknown>): string {
     const mansionStr =
       p.mansion_score && p.mansion_score !== 0 ? `${p.mansion_score}` : "データなし";
     const shopsStr = p.shops_score && p.shops_score !== 0 ? `${p.shops_score}` : "データなし";
+    const medicalStr =
+      p.medical_score && p.medical_score !== 0 ? `${p.medical_score}` : "データなし";
     return `<strong>${name}</strong><br/>
       総合偏差値: <strong>${p.composite}</strong><br/>
       地盤スコア: ${p.ground_score}<br/>
@@ -49,7 +61,8 @@ export function formatPopup(p: Record<string, unknown>): string {
       治安スコア: ${crimeStr}<br/>
       アクセススコア: ${accessStr}<br/>
       マンション価格スコア: ${mansionStr}<br/>
-      買い物利便性スコア: ${shopsStr}`;
+      買い物利便性スコア: ${shopsStr}<br/>
+      医療施設スコア: ${medicalStr}`;
   }
 
   // Liquefaction layer

@@ -4,7 +4,7 @@ import { SCORE_FACTORS } from "../../types";
 
 const DESCRIPTIONS: Record<ActiveLayer, string> = {
   composite:
-    "地盤・洪水・液状化・地価・治安・アクセス・マンション価格の7指標を偏差値化（平均50）し、平均したスコア。高いほど総合的に優れた立地。",
+    "地盤・洪水・液状化・地価・治安・アクセス・マンション価格・買い物・医療の9指標を偏差値化（平均50）し、平均したスコア。高いほど総合的に優れた立地。",
   boring:
     "N値50以上に達する深さの中央値。浅いほど硬い地盤（良好）。KuniJibanボーリングデータより。",
   flood: "想定最大規模降雨時の浸水深（国土数値情報A31a）。町丁目内で最も深い浸水ランクを表示。",
@@ -16,6 +16,8 @@ const DESCRIPTIONS: Record<ActiveLayer, string> = {
   mansion:
     "不動産情報ライブラリAPIによる中古マンション取引価格（2023-2025年）。坪単価中央値を表示。",
   shops: "OpenStreetMapのスーパー・コンビニデータ。大字内の店舗数を表示。多いほど買い物が便利。",
+  medical:
+    "OpenStreetMapの医療施設データ（病院・クリニック・診療所・薬局）。大字内の施設数を表示。",
 };
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
@@ -529,6 +531,52 @@ export const Legend = memo(function Legend({
             <span>50~</span>
           </div>
           <div style={{ marginTop: 3, color: "#666" }}>店舗数</div>
+        </div>
+      )}
+      {activeLayer === "medical" && (
+        <div>
+          <div
+            style={{
+              fontWeight: 600,
+              marginBottom: 6,
+              fontSize: 12,
+              letterSpacing: "0.02em",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            医療施設数
+            <InfoToggle activeLayer={activeLayer} />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              height: 10,
+              borderRadius: 5,
+              overflow: "hidden",
+              width: 180,
+            }}
+          >
+            {["rgba(200,200,200,0.5)", "#f1c40f", "#e67e22", "#2ecc71", "#1abc9c"].map((c) => (
+              <div key={c} style={{ flex: 1, background: c }} />
+            ))}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: 180,
+              marginTop: 3,
+              color: "#666",
+            }}
+          >
+            <span>0</span>
+            <span>5</span>
+            <span>15</span>
+            <span>40</span>
+            <span>80~</span>
+          </div>
+          <div style={{ marginTop: 3, color: "#666" }}>施設数</div>
         </div>
       )}
     </div>

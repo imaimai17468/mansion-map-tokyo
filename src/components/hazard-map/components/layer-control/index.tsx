@@ -125,6 +125,17 @@ export const LayerControl = memo(function LayerControl({
         />
         スーパー・コンビニ
       </label>
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 4 }}
+      >
+        <input
+          type="radio"
+          name="layer"
+          checked={activeLayer === "medical"}
+          onChange={() => onChange("medical")}
+        />
+        医療施設
+      </label>
     </div>
   );
 });

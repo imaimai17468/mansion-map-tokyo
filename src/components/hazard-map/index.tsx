@@ -17,6 +17,7 @@ const LIQUEFACTION_URL = "/data/liquefaction.pmtiles";
 const ACCESS_URL = "/data/access.pmtiles";
 const MANSION_URL = "/data/mansion.pmtiles";
 const SHOPS_URL = "/data/shops.pmtiles";
+const MEDICAL_URL = "/data/medical.pmtiles";
 
 const DEPTH_COLORS = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8e44ad"];
 const DEPTH_STEPS = [5, 15, 30, 50];
@@ -76,6 +77,10 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       type: "vector",
       url: `pmtiles://${SHOPS_URL}`,
     },
+    medical: {
+      type: "vector",
+      url: `pmtiles://${MEDICAL_URL}`,
+    },
   },
   layers: [{ id: "carto", type: "raster", source: "carto" }],
 };
@@ -89,6 +94,7 @@ const LIQUEFACTION_LAYER_IDS = ["liquefaction-fill", "liquefaction-line"];
 const ACCESS_LAYER_IDS = ["access-fill", "access-line"];
 const MANSION_LAYER_IDS = ["mansion-fill", "mansion-line"];
 const SHOPS_LAYER_IDS = ["shops-fill", "shops-line"];
+const MEDICAL_LAYER_IDS = ["medical-fill", "medical-line"];
 
 export default function HazardMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -503,6 +509,47 @@ export default function HazardMap() {
 
       clickLayers.push("shops-fill");
 
+      // Medical vector layers (initially hidden)
+      map.addLayer({
+        id: "medical-fill",
+        type: "fill",
+        source: "medical",
+        "source-layer": "medical",
+        paint: {
+          "fill-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "medical_total"],
+            0,
+            "rgba(200,200,200,0.3)",
+            5,
+            "#f1c40f",
+            15,
+            "#e67e22",
+            40,
+            "#2ecc71",
+            80,
+            "#1abc9c",
+          ],
+          "fill-opacity": 0.6,
+        },
+        layout: { visibility: "none" },
+      });
+
+      map.addLayer({
+        id: "medical-line",
+        type: "line",
+        source: "medical",
+        "source-layer": "medical",
+        paint: {
+          "line-color": "#fff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.2, 14, 1],
+        },
+        layout: { visibility: "none" },
+      });
+
+      clickLayers.push("medical-fill");
+
       for (const id of clickLayers) {
         map.on("click", id, handleClick);
         map.on("mouseenter", id, () => {
@@ -559,6 +606,9 @@ export default function HazardMap() {
     }
     for (const id of SHOPS_LAYER_IDS) {
       map.setLayoutProperty(id, "visibility", activeLayer === "shops" ? "visible" : "none");
+    }
+    for (const id of MEDICAL_LAYER_IDS) {
+      map.setLayoutProperty(id, "visibility", activeLayer === "medical" ? "visible" : "none");
     }
   }, [activeLayer]);
 
